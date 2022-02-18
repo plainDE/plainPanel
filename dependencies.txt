@@ -1,0 +1,4 @@
+x11 lib
+xdotool
+wmctrl
+alsa-utils
