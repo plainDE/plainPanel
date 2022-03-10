@@ -1,0 +1,3 @@
+[submodule "plainArtwork"]
+	path = plainArtwork
+	url = https://github.com/plainDE/plainArtwork
