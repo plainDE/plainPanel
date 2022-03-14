@@ -1,0 +1,7 @@
+==== DEPENDECIES ====
+noto-fonts-emoji
+
+
+==== TODO ===========
+Menu should not show up in Alt-Tab
+Favourites tab in menu
