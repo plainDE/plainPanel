@@ -18,6 +18,8 @@ struct menuUI {
     QWidget* menuWidget;
     QLineEdit* searchBox;
     QListWidget* appListWidget;
+    QListWidget* favListWidget;
+    QTabWidget* tabWidget;
 };
 
 struct App {
@@ -37,9 +39,11 @@ public:
 
     void makeItem(QString name, QIcon icon, QListWidgetItem* item);
     App readDesktopFile(QString pathToCurrentDesktopFile);
-    void buildMenu(QListWidget* appList, QList<App>* menu, QList<QString>* execList);
+    void buildMenu(QListWidget* appList);
     void searchApps(QListWidget* menuAppsList, QString mask);
     void execApp(QString exec, QWidget* appMenuWidget);
+
+    void buildFavMenu(QListWidget* favListWidget, QVariantList favDesktopFiles);
 
 public slots:
     void filterAppList();

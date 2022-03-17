@@ -4,9 +4,10 @@
 #include "../../panel.h"
 
 QHash<QListWidgetItem*,QString> execData;
+QHash<QListWidgetItem*,QString> favExecData;
 
 menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont font, short buttonX) {
-    QWidget* appMenuWidget = new QWidget;
+    /*QWidget* appMenuWidget = new QWidget;
 
     // Window flags
     // TODO: Menu should not show up in Alt-Tab (do not use Qt::X11BypassWindowManagerHint)
@@ -58,10 +59,137 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     appMenuWidget->connect(menuAppsList, &QListWidget::itemDoubleClicked, appMenuWidget,
                            [menuAppsList, appMenuWidget, this]() {
         execApp(execData[menuAppsList->selectedItems()[0]], appMenuWidget);
+    });*/
+
+
+    QWidget* appMenuWidget = new QWidget;
+
+    // Window flags
+    // TODO: Menu should not show up in Alt-Tab (do not use Qt::X11BypassWindowManagerHint)
+    appMenuWidget->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+
+
+    // Geometry
+    QScreen* primaryScreen = QGuiApplication::primaryScreen();
+
+    short menuWidth = 450;
+    short menuHeight = primaryScreen->geometry().height() / 2;
+    short ax = 0, ay = 0;
+    if (location == top) {
+        ay = panelHeight + 5;
+    }
+    else {
+        ay = primaryScreen->geometry().height() - panelHeight - menuHeight - 5;
+    }
+    if (primaryScreen->geometry().width() - buttonX >= menuWidth) {
+        ax = buttonX;
+    }
+    else {
+        ax = buttonX - menuWidth;
+    }
+    appMenuWidget->setFixedSize(menuWidth, menuHeight);
+    appMenuWidget->move(ax, ay);
+
+    // UI
+    appMenuWidget->setFont(font);
+    QVBoxLayout* mainLayout = new QVBoxLayout;
+    mainLayout->setContentsMargins(4, 4, 4, 4);
+    appMenuWidget->setLayout(mainLayout);
+
+    QTabWidget* menuTabWidget = new QTabWidget;
+    menuTabWidget->setTabShape(QTabWidget::Triangular);
+    appMenuWidget->layout()->addWidget(menuTabWidget);
+
+
+    // UI: All applications tab
+    QWidget* allAppsTab = new QWidget;
+    allAppsTab->setFont(font);
+
+    QVBoxLayout* menuLayout = new QVBoxLayout;
+    menuLayout->setContentsMargins(4, 4, 4, 4);
+    allAppsTab->setLayout(menuLayout);
+
+    QLineEdit* menuSearchBox = new QLineEdit;
+    menuSearchBox->setPlaceholderText("🔎 Search");  // u+01f50e - magnifier icon
+    menuSearchBox->setClearButtonEnabled(true);
+    allAppsTab->layout()->addWidget(menuSearchBox);
+
+    QListWidget* menuAppsList = new QListWidget;
+    allAppsTab->layout()->addWidget(menuAppsList);
+
+    menuTabWidget->addTab(allAppsTab, "All applications");
+
+
+    // UI: Favorite apps tab
+    QWidget* favAppsTab = new QWidget;
+    favAppsTab->setFont(font);
+
+    QVBoxLayout* favLayout = new QVBoxLayout;
+    favLayout->setContentsMargins(4, 4, 4, 4);
+    favAppsTab->setLayout(favLayout);
+
+    QListWidget* favAppsList = new QListWidget;
+    favAppsTab->layout()->addWidget(favAppsList);
+
+    QPushButton* editFavListPushButton = new QPushButton;
+    editFavListPushButton->setText("Edit favorites");
+    favAppsTab->layout()->addWidget(editFavListPushButton);
+
+    menuTabWidget->addTab(favAppsTab, "Favorites");
+
+
+    // UI: Edit favorite apps widget
+    QWidget* editFavsWidget = new QWidget;
+
+    QVBoxLayout* editLayout = new QVBoxLayout;
+    editLayout->setContentsMargins(4, 4, 4, 4);
+    editFavsWidget->setLayout(editLayout);
+
+    QListWidget* avaliableApps = new QListWidget;
+    editFavsWidget->layout()->addWidget(avaliableApps);
+    QListWidget* addedApps = new QListWidget;
+    editFavsWidget->layout()->addWidget(addedApps);
+
+    QHBoxLayout* buttonsLayout = new QHBoxLayout;
+
+    QPushButton* addSelected = new QPushButton;
+    addSelected->setText("Add");
+    buttonsLayout->addWidget(addSelected);
+
+    QPushButton* removeSelected = new QPushButton;
+    removeSelected->setText("Remove");
+    buttonsLayout->addWidget(removeSelected);
+
+    QPushButton* moveUp = new QPushButton;
+    moveUp->setText("Up");
+    buttonsLayout->addWidget(moveUp);
+
+    QPushButton* moveDown = new QPushButton;
+    moveDown->setText("Down");
+    buttonsLayout->addWidget(moveDown);
+
+    editFavsWidget->layout()->addItem(buttonsLayout);
+
+
+    // Make connections
+    allAppsTab->connect(menuSearchBox, &QLineEdit::textEdited, allAppsTab,
+                           [menuAppsList, menuSearchBox, this]() {
+        searchApps(menuAppsList, menuSearchBox->text());
+    });
+
+    allAppsTab->connect(menuAppsList, &QListWidget::itemDoubleClicked, allAppsTab,
+                           [menuAppsList, appMenuWidget, this]() {
+        execApp(execData[menuAppsList->selectedItems()[0]], appMenuWidget);
+    });
+
+    favAppsTab->connect(favAppsList, &QListWidget::itemDoubleClicked, favAppsTab,
+                        [favAppsList, appMenuWidget, this]() {
+        execApp(favExecData[favAppsList->selectedItems()[0]], appMenuWidget);
     });
 
 
-    return {appMenuWidget, menuSearchBox, menuAppsList};
+
+    return {appMenuWidget, menuSearchBox, menuAppsList, favAppsList, menuTabWidget};
 }
 
 App AppMenu::readDesktopFile(QString pathToCurrentDesktopFile) {
@@ -106,11 +234,30 @@ void AppMenu::execApp(QString exec, QWidget* appMenuWidget) {
         exec.chop(2);
     }
     process->start(exec);
+
     appMenuWidget->hide();
 }
 
 
-void AppMenu::buildMenu(QListWidget* menuAppsList, QList<App>* menu, QList<QString>* execList) {
+void AppMenu::buildFavMenu(QListWidget* favListWidget, QVariantList favDesktopFiles) {
+    favListWidget->clear();
+    favExecData.clear();
+
+    QDir appDir("/usr/share/applications");
+    QString pathToCurrentDesktopFile = "";
+    App currentApp;
+
+    for (int i = 0; i < favDesktopFiles.length(); ++i) {
+        pathToCurrentDesktopFile = appDir.absoluteFilePath(favDesktopFiles[i].toString());
+        currentApp = readDesktopFile(pathToCurrentDesktopFile);
+        favListWidget->addItem(currentApp.displayedName);
+        favListWidget->item(i)->setIcon(currentApp.icon);
+        favExecData[favListWidget->item(i)] = currentApp.exec;
+    }
+}
+
+
+void AppMenu::buildMenu(QListWidget* menuAppsList) {
     menuAppsList->clear();
 
     QDir appDir("/usr/share/applications");
@@ -121,9 +268,8 @@ void AppMenu::buildMenu(QListWidget* menuAppsList, QList<App>* menu, QList<QStri
     desktopFilesList.removeFirst();
     desktopFilesList.removeFirst();
 
-    menu->clear();
     menuAppsList->clear();
-    execList->clear();
+    execData.clear();
 
     qDebug() << desktopFilesList.length();
 
@@ -132,7 +278,6 @@ void AppMenu::buildMenu(QListWidget* menuAppsList, QList<App>* menu, QList<QStri
 
         currentApp = readDesktopFile(pathToCurrentDesktopFile);
         if (currentApp.display) {
-            menu->append(currentApp);
             QListWidgetItem* item = new QListWidgetItem(currentApp.displayedName);
             menuAppsList->addItem(item);
             menuAppsList->setCurrentItem(item);
@@ -157,6 +302,8 @@ void AppMenu::searchApps(QListWidget* menuAppsList, QString mask) {
 
     menuAppsList->clear();
 
+    execData.clear();
+
     for (int i = 0; i < desktopFilesList.length(); ++i) {
         pathToCurrentDesktopFile = appDir.absoluteFilePath(desktopFilesList[i]);
 
@@ -167,6 +314,7 @@ void AppMenu::searchApps(QListWidget* menuAppsList, QString mask) {
                 menuAppsList->addItem(item);
                 menuAppsList->setCurrentItem(item);
                 menuAppsList->currentItem()->setIcon(currentApp.icon);
+                execData[item] = currentApp.exec;
             }
         }
     }

@@ -45,8 +45,6 @@ QFont panelFont;
 // We will delete these variables if some of applets are not activated:
 AppMenu* menu;
 menuUI _menuUI;
-QList<App>* appList = new QList<App>;
-QList<QString>* execList = new QList<QString>;
 
 QHBoxLayout* windowListLayout = new QHBoxLayout;
 
@@ -199,8 +197,8 @@ void testPoint(panel* w) {
     //popen("/usr/bin/chromium", "r");
     // QListWidget* menuAppsList, QList<App>* menu, QListWidgetItem** itemList
 
-    qDebug() << _dateTime.__getDisplayedData__(config["timeFormat"].toString(),
-                                               config["dateFormat"].toString());
+    /*qDebug() << _dateTime.__getDisplayedData__(config["timeFormat"].toString(),
+                                               config["dateFormat"].toString());*/
 }
 
 
@@ -208,7 +206,9 @@ void testPoint(panel* w) {
 void panel::toggleAppMenu() {
     if (!_menuUI.menuWidget->isVisible()) {
         _menuUI.searchBox->clear();
-        menu->buildMenu(_menuUI.appListWidget, appList, execList);
+        menu->buildMenu(_menuUI.appListWidget);
+        menu->buildFavMenu(_menuUI.favListWidget, config["favApps"].toArray().toVariantList());
+        _menuUI.tabWidget->setCurrentIndex(0);
         _menuUI.menuWidget->show();
     }
     else {
@@ -256,7 +256,7 @@ panel::panel(QWidget *parent): QWidget(parent) {
     setPanelGeometry(this);
     setPanelUI(this);
 
-    //testPoint(this);
+    testPoint(this);
 }
 
 panel::~panel() {

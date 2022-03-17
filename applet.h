@@ -16,6 +16,7 @@
 #include <QCalendar>
 #include <QDebug>
 #include <QFile>
+#include <QTabWidget>
 
 #ifndef APPLET_H
 #define APPLET_H
