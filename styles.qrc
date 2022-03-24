@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/styles">
+        <file>styles/general-dark.qss</file>
+        <file>styles/general-light.qss</file>
+        <file>styles/userMenu.qss</file>
+        <file>styles/panel.qss</file>
+    </qresource>
+    <qresource prefix="/img">
+        <file>menuIcon.png</file>
+    </qresource>
+</RCC>
