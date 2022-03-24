@@ -115,12 +115,12 @@ void setPanelUI(panel* w) {
     // Set style
     // general
 
-    if (config["theme"] == "light") {
+    /*if (config["theme"] == "light") {
         QFile stylesheetReader(":/styles/styles/general-light.qss");
         stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
         QTextStream styleSheet(&stylesheetReader);
         w->setStyleSheet(styleSheet.readAll());
-    }
+    }*/
 
     // panel
     QFile stylesheetReader(":/styles/styles/panel.qss");
