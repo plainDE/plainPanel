@@ -1,0 +1,3 @@
+QPushButton#userMenuPushButton {
+    text-align: right;
+}

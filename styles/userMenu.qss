@@ -1,0 +1,3 @@
+QPushButton {
+    text-align: left;
+}
