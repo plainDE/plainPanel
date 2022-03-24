@@ -18,8 +18,6 @@
 #include <QHBoxLayout>
 #include <QSpacerItem>
 
-#include <QX11Info>
-
 #include "applet.h"
 #include "applets/appmenu/appmenu.h"
 #include "applets/datetime/datetime.h"
@@ -27,8 +25,6 @@
 #include "applets/usermenu/usermenu.h"
 #include "applets/volume/volume.h"
 
-
-Display* display = QX11Info::display();
 QJsonObject config;
 QMap<QString,QWidget*> appletWidgets;
 PanelLocation location;
@@ -62,7 +58,8 @@ void readConfig() {
 }
 
 void basicInit(panel* w) {
-    if (!QX11Info::isPlatformX11()) {
+    //if (!QX11Info::isPlatformX11()) {
+    if (QString::compare(getenv("XDG_SESSION_TYPE"), "x11")) {
         qDebug() << "plainPanel currently works only on X11. Quitting...";
         QApplication::quit();
     }
