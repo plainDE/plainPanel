@@ -33,7 +33,7 @@ QFont panelFont;
 AppMenu* menu;
 menuUI _menuUI;
 
-QHBoxLayout* windowListLayout = new QHBoxLayout;
+//QHBoxLayout* windowListLayout = new QHBoxLayout;
 
 DateTimeApplet _dateTime;
 dateTimeUI _dateTimeUI;
@@ -157,11 +157,14 @@ void setPanelUI(panel* w) {
             appMenuPushButton->setText(" " + config["menuText"].toString());
         }
 
-        else if (applet == "windowlist") {
-            // not realized yet
-
-            w->layout()->addItem(windowListLayout);
+        else if (applet == "spacer") {
+            //w->layout()->addItem(windowListLayout);
             w->layout()->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
+        }
+
+        else if (applet == "splitter") {
+            QLabel* splitter = new QLabel("|");
+            w->layout()->addWidget(splitter);
         }
 
         else if (applet == "datetime") {
