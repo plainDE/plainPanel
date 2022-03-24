@@ -1,19 +1,14 @@
 #include "panel.h"
 
-#include <stdio.h>
-
 #include <QApplication>
 #include <QFile>
 #include <QJsonObject>
 #include <QJsonDocument>
 #include <QScreen>
-#include <QThread>
 #include <QTimer>
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QIcon>
-#include <QDir>
-#include <QSize>
 #include <QMap>
 
 #include <QFont>
@@ -21,36 +16,36 @@
 #include <QLabel>
 #include <QDial>
 #include <QHBoxLayout>
-#include <QLayoutItem>
 #include <QSpacerItem>
 
-#include <X11/Xlib.h>
-//include <X11/Xatom.h>
-#include <X11/Xutil.h>
-#include <X11/XKBlib.h>
+#include <QX11Info>
 
 #include "applet.h"
 #include "applets/appmenu/appmenu.h"
 #include "applets/datetime/datetime.h"
+#include "applets/kblayout/kblayout.h"
+#include "applets/usermenu/usermenu.h"
+#include "applets/volume/volume.h"
 
 
-Display* display;
+Display* display = QX11Info::display();
 QJsonObject config;
-//QMap<QString,QWidget*> widgets;
-// All applets
-QMap<QString,QPushButton*> appletsButtons;
+QMap<QString,QWidget*> appletWidgets;
 PanelLocation location;
-
 QFont panelFont;
-// We will delete these variables if some of applets are not activated:
+
 AppMenu* menu;
 menuUI _menuUI;
 
 QHBoxLayout* windowListLayout = new QHBoxLayout;
 
 DateTimeApplet _dateTime;
-QWidget* calendarWidget;
+dateTimeUI _dateTimeUI;
 
+KbLayoutApplet _kbLayout;
+
+UserMenuApplet _userMenu;
+userMenuUI _userMenuUI;
 
 void readConfig() {
     // set globally readable variable for reading settings
@@ -64,6 +59,16 @@ void readConfig() {
     data = file.readAll();
     file.close();
     config = QJsonDocument::fromJson(data.toUtf8()).object();
+}
+
+void basicInit(panel* w) {
+    if (!QX11Info::isPlatformX11()) {
+        qDebug() << "plainPanel currently works only on X11. Quitting...";
+        QApplication::quit();
+    }
+
+    w->setWindowTitle("plainPanel");
+    QDir::setCurrent(getenv("HOME"));
 }
 
 void setPanelGeometry(panel* w) {
@@ -87,25 +92,12 @@ void setPanelGeometry(panel* w) {
     w->move(ax, ay);
 
     // Flags
-    //w->setWindowFlags(w->windowFlags() | Qt::X11BypassWindowManagerHint);
     w->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     w->setAttribute(Qt::WA_X11NetWmWindowTypeDock);
-
-    w->show();
 }
 
 void setRepeatingActions(panel* w) {
-    // here we bring to life main QTimer
-
-    // time
-    // kbLayout
-    // XNextEvent
-
-    /*QTimer* windowListTimer = new QTimer(w);
-    windowListTimer->setInterval(1000);
-    w->connect(windowListTimer, &QTimer::timeout, w, [windowList]() { updateWindowList(windowList); });
-    windowListTimer->start();*/
-
+    // here we bring to life main QTimer for updating applets data
 
     QTimer* updateAppletsDataTimer = new QTimer(w);
     updateAppletsDataTimer->setInterval(500);
@@ -120,42 +112,57 @@ void setPanelUI(panel* w) {
     panelFont.setPointSize(config["fontSize"].toInt());
     w->setFont(panelFont);
 
-    // Theme & icons
-    /*QString mainMenuIconPath = "", userIconPath = "";
+    // Set style
+    // general
 
-    mainMenuIconPath = "/usr/share/plainDE/artwork/plainIcons/png/32x32/menu-black.png";
-    if (config["theme"].toString() == "dark") {
-        mainMenuIconPath = "/usr/share/plainDE/artwork/plainIcons/png/32x32/menu-white.png";
-    }*/
+    if (config["theme"] == "light") {
+        QFile stylesheetReader(":/styles/styles/general-light.qss");
+        stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
+        QTextStream styleSheet(&stylesheetReader);
+        w->setStyleSheet(styleSheet.readAll());
+    }
+
+    // panel
+    QFile stylesheetReader(":/styles/styles/panel.qss");
+    stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
+    QTextStream styleSheet(&stylesheetReader);
+    w->setStyleSheet(styleSheet.readAll());
+
+
+    // Icons
+    QIcon::setThemeName(config["iconTheme"].toString());
+
 
     // Layout
     QHBoxLayout* uiLayout = new QHBoxLayout;
     uiLayout->setContentsMargins(1, 1, 1, 1);
     w->setLayout(uiLayout);
 
-    // Applets
-    QVariantList activatedAppletsList = config["applets"].toArray().toVariantList();
+
+    // Applets: show applets
+    QFontMetrics fm(panelFont);
+    location = (config["panelLocation"].toString() == "top") ? top : bottom;
+
     /* We could use QVariantList::contains, but this approach will not observe
      * order of placing applets, using loop. */
-    location = (config["panelLocation"].toString() == "top") ? top : bottom;
+    QVariantList activatedAppletsList = config["applets"].toArray().toVariantList();
     foreach (QVariant applet, activatedAppletsList) {
         if (applet == "appmenu") {
             QPushButton* appMenuPushButton = new QPushButton;
             appMenuPushButton->setFlat(true);
             w->layout()->addWidget(appMenuPushButton);
-            appletsButtons["appMenuPushButton"] = appMenuPushButton;
-
-            _menuUI = menu->__createUI__(location, config["panelHeight"].toInt(), panelFont, appMenuPushButton->x());
+            appletWidgets["appMenuPushButton"] = appMenuPushButton;
 
             // temporary (?)
-            appMenuPushButton->setIcon(QIcon("/usr/share/plainDE/artwork/plainIcons/png/menuIcon.png"));
+            //appMenuPushButton->setIcon(QIcon("/usr/share/plainDE/artwork/plainIcons/png/menuIcon.png"));
+            appMenuPushButton->setIcon(QIcon(":/img/menuIcon.png"));
 
             appMenuPushButton->setText(" " + config["menuText"].toString());
-
-            w->connect(appMenuPushButton, &QPushButton::clicked, w, &panel::toggleAppMenu);
         }
 
         else if (applet == "windowlist") {
+            // not realized yet
+
             w->layout()->addItem(windowListLayout);
             w->layout()->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
         }
@@ -164,12 +171,8 @@ void setPanelUI(panel* w) {
             QPushButton* dateTimePushButton = new QPushButton;
             dateTimePushButton->setFlat(true);
             w->layout()->addWidget(dateTimePushButton);
-            appletsButtons["dateTimePushButton"] = dateTimePushButton;
 
-            calendarWidget = _dateTime.__createUI__(location,
-                                                    config["panelHeight"].toInt(),
-                                                    panelFont,
-                                                    dateTimePushButton->x());
+            appletWidgets["dateTimePushButton"] = dateTimePushButton;
 
             if (config["showDate"].toBool()) {
                 dateTimePushButton->setText(
@@ -180,10 +183,122 @@ void setPanelUI(panel* w) {
                 dateTimePushButton->setText(
                             _dateTime.__getDisplayedData__(config["timeFormat"].toString()));
             }
+        }
 
-            w->connect(dateTimePushButton, &QPushButton::clicked, w, &panel::toggleCalendar);
+        else if (applet == "kblayout") {
+            QPushButton* layoutName = new QPushButton;
+            appletWidgets["layoutName"] = layoutName;
+
+            short buttonWidth = fm.horizontalAdvance("ZZ");
+            layoutName->setMaximumWidth(buttonWidth);
+            layoutName->setFlat(true);
+
+            w->layout()->addWidget(layoutName);
+        }
+
+        else if (applet == "usermenu") {
+            QPushButton* userMenuPushButton = new QPushButton;
+            userMenuPushButton->setFlat(true);
+            userMenuPushButton->setText(getenv("USER"));
+            appletWidgets["userMenuPushButton"] = userMenuPushButton;
+            userMenuPushButton->setObjectName("userMenuPushButton");
+
+            short userMenuWidth = fm.horizontalAdvance(getenv("USER")) + 20;
+            userMenuPushButton->setMaximumWidth(userMenuWidth);
+
+            userMenuPushButton->setIcon(QIcon::fromTheme("computer"));
+
+            w->layout()->addWidget(userMenuPushButton);
+        }
+
+        else if (applet == "volume") {
+            QDial* volumeDial = new QDial;
+            volumeDial->setMinimum(0);
+            volumeDial->setMaximum(100);
+            volumeDial->setValue(50);
+            volumeDial->setMaximumWidth(25);
+
+            QLabel* volumeLabel = new QLabel("50%");
+            volumeLabel->setMaximumWidth(fm.horizontalAdvance("100%"));
+
+            w->layout()->addWidget(volumeDial);
+            w->layout()->addWidget(volumeLabel);
+
+            VolumeApplet::setVolume(50);
+
+            appletWidgets["volumeDial"] = volumeDial;
+            appletWidgets["volumeLabel"] = volumeLabel;
         }
     }
+
+    w->show();
+
+    // Applets: set actions
+    foreach (QVariant applet, activatedAppletsList) {
+        if (applet == "appmenu") {
+            _menuUI = menu->__createUI__(location, config["panelHeight"].toInt(),
+                                        panelFont, appletWidgets["appMenuPushButton"]->x(),
+                                        appletWidgets["appMenuPushButton"]->geometry().topRight().x(),
+                                        config["appMenuTriangularTabs"].toBool());
+            w->connect(static_cast<QPushButton*>(appletWidgets["appMenuPushButton"]), &QPushButton::clicked, w, &panel::toggleAppMenu);
+        }
+
+        else if (applet == "datetime") {
+            Qt::DayOfWeek day;
+            QString configDay = config["firstDayOfWeek"].toString();
+            // temp
+            if (configDay == "Monday") {
+                day = Qt::Monday;
+            }
+            else if (configDay == "Tuesday") {
+                day = Qt::Tuesday;
+            }
+            else if (configDay == "Wednesday") {
+                day = Qt::Wednesday;
+            }
+            else if (configDay == "Thursday") {
+                day = Qt::Thursday;
+            }
+            else if (configDay == "Friday") {
+                day = Qt::Friday;
+            }
+            else if (configDay == "Saturday") {
+                day = Qt::Saturday;
+            }
+            else {
+                day = Qt::Sunday;
+            }
+
+            _dateTimeUI = _dateTime.__createUI__(location,
+                                                    config["panelHeight"].toInt(),
+                                                    panelFont,
+                                                    appletWidgets["dateTimePushButton"]->pos().x(),
+                                                    appletWidgets["dateTimePushButton"]->geometry().topRight().x(),
+                                                    day);
+
+            w->connect(static_cast<QPushButton*>(appletWidgets["dateTimePushButton"]), &QPushButton::clicked, w, &panel::toggleCalendar);
+        }
+
+        else if (applet == "kblayout") {
+            _kbLayout.__init__();
+            static_cast<QPushButton*>(appletWidgets["layoutName"])->setText(_kbLayout.getCurrentKbLayout());
+        }
+
+        else if (applet == "usermenu") {
+            _userMenuUI = _userMenu.__createUI__(location,
+                                                 config["panelHeight"].toInt(),
+                                                 panelFont,
+                                                 appletWidgets["userMenuPushButton"]->pos().x(),
+                                                 appletWidgets["userMenuPushButton"]->geometry().topRight().x());
+
+            w->connect(static_cast<QPushButton*>(appletWidgets["userMenuPushButton"]), &QPushButton::clicked, w, &panel::toggleUserMenu);
+        }
+
+        else if (applet == "volume") {
+            w->connect(static_cast<QDial*>(appletWidgets["volumeDial"]), &QDial::valueChanged, w, &panel::setVolume);
+        }
+    }
+
 
     setRepeatingActions(w);
 
@@ -193,20 +308,11 @@ void setPanelUI(panel* w) {
 }
 
 
-void testPoint(panel* w) {
-    //popen("/usr/bin/chromium", "r");
-    // QListWidget* menuAppsList, QList<App>* menu, QListWidgetItem** itemList
-
-    /*qDebug() << _dateTime.__getDisplayedData__(config["timeFormat"].toString(),
-                                               config["dateFormat"].toString());*/
-}
-
-
 // Slots
-void panel::toggleAppMenu() {
+void panel::toggleAppMenu() {    
     if (!_menuUI.menuWidget->isVisible()) {
         _menuUI.searchBox->clear();
-        menu->buildMenu(_menuUI.appListWidget);
+        menu->buildMenu(_menuUI.appListWidget, "");
         menu->buildFavMenu(_menuUI.favListWidget, config["favApps"].toArray().toVariantList());
         _menuUI.tabWidget->setCurrentIndex(0);
         _menuUI.menuWidget->show();
@@ -217,20 +323,27 @@ void panel::toggleAppMenu() {
 }
 
 void panel::toggleCalendar() {
-    if (!calendarWidget->isVisible()) {
-        calendarWidget->show();
+    if (!_dateTimeUI.calendarWidget->isVisible()) {
+        _dateTimeUI.calendarWidget->show();
     }
-    else {
-        calendarWidget->hide();
+    else _dateTimeUI.calendarWidget->hide();
+}
+
+void panel::toggleUserMenu() {
+    if (!_userMenuUI.userMenuWidget->isVisible()) {
+        _userMenuUI.userMenuWidget->show();
     }
+    else _userMenuUI.userMenuWidget->hide();
 }
 
 void panel::filterAppsList() {
-    menu->searchApps(_menuUI.appListWidget, _menuUI.searchBox->text());
+    menu->buildMenu(_menuUI.appListWidget, _menuUI.searchBox->text());
 }
 
-void panel::setSystemVolume() {
-
+void panel::setVolume() {
+    short newValue = static_cast<QDial*>(appletWidgets["volumeDial"])->value();
+    VolumeApplet::setVolume(newValue);
+    static_cast<QLabel*>(appletWidgets["volumeLabel"])->setText(QString::number(newValue) + "%");
 }
 
 void panel::updateAppletsData() {
@@ -238,20 +351,39 @@ void panel::updateAppletsData() {
     foreach (QVariant applet, activatedAppletsList) {
         if (applet == "datetime") {
             if (config["showDate"].toBool()) {
-                appletsButtons["dateTimePushButton"]->setText(
+               static_cast<QPushButton*>(appletWidgets["dateTimePushButton"])->setText(
                             _dateTime.__getDisplayedData__(config["timeFormat"].toString(),
                                                            config["dateFormat"].toString()));
             }
             else {
-                appletsButtons["dateTimePushButton"]->setText(
+                static_cast<QPushButton*>(appletWidgets["dateTimePushButton"])->setText(
                             _dateTime.__getDisplayedData__(config["timeFormat"].toString()));
             }
+        }
+
+        else if (applet == "kblayout") {
+            static_cast<QPushButton*>(appletWidgets["layoutName"])->setText(_kbLayout.getCurrentKbLayout());
         }
     }
 }
 
 
+
+
+void testPoint(panel* w) {
+    // here you can put your code to test
+
+    //popen("/usr/bin/chromium", "r");
+    // QListWidget* menuAppsList, QList<App>* menu, QListWidgetItem** itemList
+
+    /*qDebug() << _dateTime.__getDisplayedData__(config["timeFormat"].toString(),
+                                               config["dateFormat"].toString());*/
+
+
+}
+
 panel::panel(QWidget *parent): QWidget(parent) {
+    basicInit(this);
     readConfig();
     setPanelGeometry(this);
     setPanelUI(this);

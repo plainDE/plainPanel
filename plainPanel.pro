@@ -1,8 +1,10 @@
 QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 4): QT += x11extras
 
 CONFIG += c++11
+CONFIG += x11
 
 LIBS += -lX11
 
@@ -14,7 +16,8 @@ SOURCES += \
     applet.cpp \
     applets/appmenu/appmenu.cpp \
     applets/datetime/datetime.cpp \
-    applets/favoriteApps/favoriteapps.cpp \
+    applets/kblayout/kblayout.cpp \
+    applets/usermenu/usermenu.cpp \
     applets/volume/volume.cpp \
     main.cpp \
     panel.cpp
@@ -23,7 +26,8 @@ HEADERS += \
     applet.h \
     applets/appmenu/appmenu.h \
     applets/datetime/datetime.h \
-    applets/favoriteApps/favoriteapps.h \
+    applets/kblayout/kblayout.h \
+    applets/usermenu/usermenu.h \
     applets/volume/volume.h \
     panel.h
 
@@ -39,3 +43,6 @@ DISTFILES += \
     devnotes.txt \
     styles/dark.qss \
     styles/light.qss
+
+RESOURCES += \
+    styles.qrc

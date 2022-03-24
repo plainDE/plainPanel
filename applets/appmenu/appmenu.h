@@ -35,18 +35,15 @@ public:
     QString __appletName__ = "Application Menu";
     AppletType __appletType__ = appMenu;
     bool __needsToBeUpdated__ = false;
-    menuUI __createUI__(PanelLocation location, short panelHeight, QFont font, short buttonX);
-
+    menuUI __createUI__(PanelLocation location, short panelHeight, QFont font,
+                        short buttonX, short buttonXRight, bool triangularTabs);
     void makeItem(QString name, QIcon icon, QListWidgetItem* item);
     App readDesktopFile(QString pathToCurrentDesktopFile);
-    void buildMenu(QListWidget* appList);
+    void buildMenu(QListWidget* appList, QString searchRequest);
     void searchApps(QListWidget* menuAppsList, QString mask);
     void execApp(QString exec, QWidget* appMenuWidget);
 
     void buildFavMenu(QListWidget* favListWidget, QVariantList favDesktopFiles);
-
-public slots:
-    void filterAppList();
 };
 
 #endif // APPMENU_H

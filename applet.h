@@ -2,6 +2,7 @@
 #include <QPushButton>
 #include <QIcon>
 #include <QWidget>
+#include <QApplication>
 #include <QGuiApplication>
 #include <QScreen>
 #include <QVBoxLayout>
@@ -17,6 +18,9 @@
 #include <QDebug>
 #include <QFile>
 #include <QTabWidget>
+#include <QJsonArray>
+#include <QCalendarWidget>
+#include <QMessageBox>
 
 #ifndef APPLET_H
 #define APPLET_H

@@ -1,7 +1,12 @@
 ==== DEPENDECIES ====
+polkit
 noto-fonts-emoji
 
 
 ==== TODO ===========
 Menu should not show up in Alt-Tab
-Favourites tab in menu
+Change app menu icon
+Flag icon in kblayout
+
+
+111

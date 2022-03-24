@@ -2,9 +2,10 @@
 
 #include <cstdlib>
 #include <iostream>
-using std::string;
-using std::to_string;
 
-void volumeApplet::setVolume(int newVolume) {
-    system("amixer -q -D default sset Master 60");
+void VolumeApplet::setVolume(int newVolume) {
+    QString exec = "amixer -q -D default sset Master " + QString::number(newVolume);
+
+    QProcess* process = new QProcess;
+    process->start(exec);
 }
