@@ -1,4 +1,4 @@
-QT       += core gui
+QT       += core gui KWindowSystem
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -6,6 +6,9 @@ CONFIG += c++11
 CONFIG += x11
 
 LIBS += -lX11
+LIBS += -lKF5WindowSystem
+INCLUDEPATH += /usr/include/KF5/KWindowSystem
+
 
 # You can make your code fail to compile if it uses deprecated APIs.
 # In order to do so, uncomment the following line.
@@ -18,6 +21,7 @@ SOURCES += \
     applets/kblayout/kblayout.cpp \
     applets/usermenu/usermenu.cpp \
     applets/volume/volume.cpp \
+    applets/windowlist/windowlist.cpp \
     main.cpp \
     panel.cpp
 
@@ -28,6 +32,7 @@ HEADERS += \
     applets/kblayout/kblayout.h \
     applets/usermenu/usermenu.h \
     applets/volume/volume.h \
+    applets/windowlist/windowlist.h \
     panel.h
 
 CONFIG += lrelease

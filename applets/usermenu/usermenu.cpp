@@ -119,6 +119,14 @@ userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeigh
         }
     });
 
+    userMenuWidget->connect(settingsEntry, &QPushButton::clicked, userMenuWidget,
+                            [userMenuWidget]() {
+        userMenuWidget->hide();
+
+        QProcess* process = new QProcess(userMenuWidget);
+        process->start("plainControlCenter");
+    });
+
     userMenuWidget->connect(aboutEntry, &QPushButton::clicked, userMenuWidget,
                             [userMenuWidget]() {
         userMenuWidget->hide();

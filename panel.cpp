@@ -9,7 +9,9 @@
 #include <QJsonArray>
 #include <QJsonValue>
 #include <QIcon>
+#include <QPixmap>
 #include <QMap>
+#include <QList>
 
 #include <QFont>
 #include <QPushButton>
@@ -18,22 +20,31 @@
 #include <QHBoxLayout>
 #include <QSpacerItem>
 
+#include <KWindowSystem>
+
 #include "applet.h"
 #include "applets/appmenu/appmenu.h"
 #include "applets/datetime/datetime.h"
 #include "applets/kblayout/kblayout.h"
 #include "applets/usermenu/usermenu.h"
 #include "applets/volume/volume.h"
+#include "applets/windowlist/windowlist.h"
 
+Display* display;
 QJsonObject config;
 QMap<QString,QWidget*> appletWidgets;
 PanelLocation location;
 QFont panelFont;
+WId panelWinID;
+
+QVariantList activatedAppletsList;
 
 AppMenu* menu;
 menuUI _menuUI;
 
-//QHBoxLayout* windowListLayout = new QHBoxLayout;
+QHBoxLayout* windowListLayout = new QHBoxLayout;
+QList<WId> winIDs;
+QHash<WId,QPushButton*> winWidgets;
 
 DateTimeApplet _dateTime;
 dateTimeUI _dateTimeUI;
@@ -42,6 +53,7 @@ KbLayoutApplet _kbLayout;
 
 UserMenuApplet _userMenu;
 userMenuUI _userMenuUI;
+
 
 void readConfig() {
     // set globally readable variable for reading settings
@@ -58,7 +70,6 @@ void readConfig() {
 }
 
 void basicInit(panel* w) {
-    //if (!QX11Info::isPlatformX11()) {
     if (QString::compare(getenv("XDG_SESSION_TYPE"), "x11")) {
         qDebug() << "plainPanel currently works only on X11. Quitting...";
         QApplication::quit();
@@ -66,6 +77,8 @@ void basicInit(panel* w) {
 
     w->setWindowTitle("plainPanel");
     QDir::setCurrent(getenv("HOME"));
+    display = XOpenDisplay(getenv("DISPLAY"));
+    panelWinID = w->winId();
 }
 
 void setPanelGeometry(panel* w) {
@@ -79,14 +92,21 @@ void setPanelGeometry(panel* w) {
     QScreen* primaryScreen = QGuiApplication::primaryScreen();
 
     // Size & location
-    int ax = 0, ay = 0;
-    int panelWidth = primaryScreen->size().width();
-    int panelHeight = config["panelHeight"].toInt();
+    short ax = 0, ay = 0;
+    short panelWidth = primaryScreen->size().width();
+    short panelHeight = config["panelHeight"].toInt();
+    short topStrut = panelHeight, bottomStrut = 0;
+
     if (config["panelLocation"].toString() == "bottom") {
         ay = primaryScreen->size().height() - panelHeight;
+        topStrut = 0;
+        bottomStrut = panelHeight;
     }
     w->setFixedSize(panelWidth, panelHeight);
     w->move(ax, ay);
+
+    // _NET_WM_STRUT
+    KWindowSystem::setStrut(w->winId(), 0, 0, topStrut, bottomStrut);
 
     // Flags
     w->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
@@ -96,12 +116,11 @@ void setPanelGeometry(panel* w) {
 void setRepeatingActions(panel* w) {
     // here we bring to life main QTimer for updating applets data
 
-    QTimer* updateAppletsDataTimer = new QTimer(w);
+    QTimer* updateAppletsDataTimer = new QTimer(w);  // we should find a better way to update applets
     updateAppletsDataTimer->setInterval(500);
     w->connect(updateAppletsDataTimer, &QTimer::timeout, w, &panel::updateAppletsData);
     updateAppletsDataTimer->start();
 }
-
 
 void setPanelUI(panel* w) {
     // Set font
@@ -129,7 +148,6 @@ void setPanelUI(panel* w) {
     // Icons
     QIcon::setThemeName(config["iconTheme"].toString());
 
-
     // Layout
     QHBoxLayout* uiLayout = new QHBoxLayout;
     uiLayout->setContentsMargins(1, 1, 1, 1);
@@ -142,8 +160,8 @@ void setPanelUI(panel* w) {
 
     /* We could use QVariantList::contains, but this approach will not observe
      * order of placing applets, using loop. */
-    QVariantList activatedAppletsList = config["applets"].toArray().toVariantList();
-    foreach (QVariant applet, activatedAppletsList) {
+    QVariantList activeAppletsList = config["applets"].toArray().toVariantList();
+    foreach (QVariant applet, activeAppletsList) {
         if (applet == "appmenu") {
             QPushButton* appMenuPushButton = new QPushButton;
             appMenuPushButton->setFlat(true);
@@ -229,12 +247,17 @@ void setPanelUI(panel* w) {
             appletWidgets["volumeDial"] = volumeDial;
             appletWidgets["volumeLabel"] = volumeLabel;
         }
+
+        else if (applet == "windowlist") {
+            //w->layout()->addItem(windowListLayout);
+            uiLayout->addLayout(windowListLayout);
+        }
     }
 
     w->show();
 
     // Applets: set actions
-    foreach (QVariant applet, activatedAppletsList) {
+    foreach (QVariant applet, activeAppletsList) {
         if (applet == "appmenu") {
             _menuUI = menu->__createUI__(location, config["panelHeight"].toInt(),
                                         panelFont, appletWidgets["appMenuPushButton"]->x(),
@@ -297,8 +320,31 @@ void setPanelUI(panel* w) {
         else if (applet == "volume") {
             w->connect(static_cast<QDial*>(appletWidgets["volumeDial"]), &QDial::valueChanged, w, &panel::setVolume);
         }
+
+        else if (applet == "windowlist") {
+            WindowList wl;
+            QList<WId> wins = wl.getWinList();
+
+            for (auto it = wins.cbegin(), end = wins.cend(); it != end; ++it) {
+                if (*it != panelWinID) {
+                    KWindowInfo nameInfo(*it, NET::WMName);
+                    QPixmap icon = KWindowSystem::icon(*it, -1, config["panelHeight"].toInt(), true);
+                    QString winName = nameInfo.name();
+                    short size = winName.size();
+                    winName.truncate(15);
+                    if (size > 15) {
+                        winName += "...";
+                    }
+                    QPushButton* windowButton = new QPushButton(winName);
+                    windowButton->setIcon(icon);
+                    winWidgets[*it] = windowButton;
+                    windowListLayout->addWidget(windowButton);
+                }
+            }
+        }
     }
 
+    activatedAppletsList = config["applets"].toArray().toVariantList();
 
     setRepeatingActions(w);
 
@@ -346,8 +392,73 @@ void panel::setVolume() {
     static_cast<QLabel*>(appletWidgets["volumeLabel"])->setText(QString::number(newValue) + "%");
 }
 
+void panel::updateWindowList() {
+    WindowList wl;
+    winIDs.clear();
+    winIDs = wl.getWinList();
+
+    for (auto it = winIDs.cbegin(), end = winIDs.cend(); it != end; ++it) {
+        if (*it != panelWinID) {
+            if (!winWidgets.contains(*it)) {
+                KWindowInfo nameInfo(*it, NET::WMName);
+                QPixmap icon = KWindowSystem::icon(*it, -1, config["panelHeight"].toInt(), true);
+                QString winName = nameInfo.name();
+                short size = winName.size();
+                winName.truncate(15);
+                if (size > 15) {
+                    winName += "...";
+                }
+                QPushButton* windowButton = new QPushButton(winName);
+                windowButton->setIcon(icon);
+                winWidgets[*it] = windowButton;
+                windowListLayout->addWidget(windowButton);
+
+
+                this->connect(windowButton, &QPushButton::clicked, this, [it]() {
+                    KWindowInfo windowInfo(*it, NET::WMState | NET::XAWMState);
+                    if (windowInfo.mappingState() == NET::Iconic || windowInfo.isMinimized()) {
+                        KWindowSystem::activateWindow(*it);
+                    }
+                    else {
+                        KWindowSystem::minimizeWindow(*it);
+                    }
+                });
+
+                this->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, []() {
+                    WindowList wl;
+                    QList<unsigned long long> keys = winWidgets.keys();
+                    winIDs.clear();
+                    winIDs = wl.getWinList();
+
+                    foreach (unsigned long long id, keys) {
+                        if (!winIDs.contains(id)) {
+                            delete winWidgets[id];
+                            winWidgets.remove(id);
+                        }
+                    }
+                });
+            }
+            else {
+                KWindowInfo nameInfo(*it, NET::WMName);
+                QString newName = nameInfo.name();
+                short sz = newName.length();
+                newName.truncate(15);
+                if (newName.length() == sz) {
+                    if (winWidgets[*it]->text() != newName) {
+                        winWidgets[*it]->setText(newName);
+                    }
+                }
+                else {
+                    if (winWidgets[*it]->text() != newName + "...") {
+                        winWidgets[*it]->setText(newName + "...");
+                    }
+                }
+            }
+        }
+    }
+}
+
 void panel::updateAppletsData() {
-    QVariantList activatedAppletsList = config["applets"].toArray().toVariantList();
     foreach (QVariant applet, activatedAppletsList) {
         if (applet == "datetime") {
             if (config["showDate"].toBool()) {
@@ -364,20 +475,40 @@ void panel::updateAppletsData() {
         else if (applet == "kblayout") {
             static_cast<QPushButton*>(appletWidgets["layoutName"])->setText(_kbLayout.getCurrentKbLayout());
         }
+
+        else if (applet == "windowlist") {
+            updateWindowList();
+        }
+
     }
 }
 
+
+
+void autostart(panel* w) {
+    QStringList autostartEntries = config["autostart"].toVariant().toStringList();
+    QString pathToCurrentDesktopFile = "";
+    QString exec = "";
+
+    foreach (QString entry, autostartEntries) {
+        pathToCurrentDesktopFile = "/usr/share/applications/" + entry;
+
+        QSettings desktopFileReader(pathToCurrentDesktopFile, QSettings::IniFormat);
+        desktopFileReader.sync();
+        desktopFileReader.beginGroup("Desktop Entry");
+            exec = desktopFileReader.value("Exec").toString();
+
+        QProcess* process = new QProcess(w);
+        process->start(exec);
+    }
+}
 
 
 
 void testPoint(panel* w) {
     // here you can put your code to test
 
-    //popen("/usr/bin/chromium", "r");
-    // QListWidget* menuAppsList, QList<App>* menu, QListWidgetItem** itemList
-
-    /*qDebug() << _dateTime.__getDisplayedData__(config["timeFormat"].toString(),
-                                               config["dateFormat"].toString());*/
+    qDebug() << "Desktop:" << KWindowSystem::currentDesktop();
 
 
 }
@@ -387,6 +518,7 @@ panel::panel(QWidget *parent): QWidget(parent) {
     readConfig();
     setPanelGeometry(this);
     setPanelUI(this);
+    autostart(this);
 
     testPoint(this);
 }

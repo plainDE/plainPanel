@@ -215,6 +215,7 @@ void AppMenu::buildFavMenu(QListWidget* favListWidget, QVariantList favDesktopFi
     for (int i = 0; i < favDesktopFiles.length(); ++i) {
         pathToCurrentDesktopFile = appDir.absoluteFilePath(favDesktopFiles[i].toString());
         currentApp = readDesktopFile(pathToCurrentDesktopFile);
+
         favListWidget->addItem(currentApp.displayedName);
         favListWidget->item(i)->setIcon(currentApp.icon);
         favExecData[favListWidget->item(i)] = currentApp.exec;
@@ -227,13 +228,12 @@ void AppMenu::buildFavMenu(QListWidget* favListWidget, QVariantList favDesktopFi
 
 
 void AppMenu::buildMenu(QListWidget* menuAppsList, QString searchRequest) {
+    // TODO: ~/.local/share/applications
     QDir appDir("/usr/share/applications");
     QStringList desktopFilesList = appDir.entryList();
 
     QString pathToCurrentDesktopFile;
     App currentApp;
-
-    menuAppsList->clear();
 
     desktopFilesList.removeFirst();
     desktopFilesList.removeFirst();
@@ -243,7 +243,6 @@ void AppMenu::buildMenu(QListWidget* menuAppsList, QString searchRequest) {
 
     for (int i = 0; i < desktopFilesList.length(); ++i) {
         pathToCurrentDesktopFile = appDir.absoluteFilePath(desktopFilesList[i]);
-
         currentApp = readDesktopFile(pathToCurrentDesktopFile);
         if (currentApp.display) {
             if (currentApp.displayedName != "") {

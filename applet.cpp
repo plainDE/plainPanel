@@ -1,6 +1,5 @@
 #include "applet.h"
 
-Applet::Applet()
-{
+Applet::Applet() {
 
 }

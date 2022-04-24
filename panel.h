@@ -9,7 +9,7 @@
 #include <QListWidgetItem>
 #include <QJsonObject>
 
-/* including XKBLib here due to ug caused by including
+/* including X libs here due to bug caused by including
  * them in kblayout.h */
 #include <X11/XKBlib.h>
 #include <X11/Xlib.h>
@@ -50,7 +50,7 @@ public slots:
     void toggleUserMenu();
     void filterAppsList();
     void setVolume();
+    void updateWindowList();
     void updateAppletsData();
-
 };
 #endif // PANEL_H
