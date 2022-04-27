@@ -51,6 +51,7 @@ public slots:
     void filterAppsList();
     void setVolume();
     void updateWindowList();
+    void updateWorkspaces();
     void updateAppletsData();
 };
 #endif // PANEL_H

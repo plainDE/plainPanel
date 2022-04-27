@@ -5,7 +5,4 @@
         <file>styles/userMenu.qss</file>
         <file>styles/panel.qss</file>
     </qresource>
-    <qresource prefix="/img">
-        <file>menuIcon.png</file>
-    </qresource>
 </RCC>

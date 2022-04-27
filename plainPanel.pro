@@ -22,6 +22,7 @@ SOURCES += \
     applets/usermenu/usermenu.cpp \
     applets/volume/volume.cpp \
     applets/windowlist/windowlist.cpp \
+    applets/workspaces/workspaces.cpp \
     main.cpp \
     panel.cpp
 
@@ -33,6 +34,7 @@ HEADERS += \
     applets/usermenu/usermenu.h \
     applets/volume/volume.h \
     applets/windowlist/windowlist.h \
+    applets/workspaces/workspaces.h \
     panel.h
 
 CONFIG += lrelease

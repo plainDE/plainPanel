@@ -54,6 +54,9 @@ KbLayoutApplet _kbLayout;
 UserMenuApplet _userMenu;
 userMenuUI _userMenuUI;
 
+qint8 visibleDesktop;
+qint8 countWorkspaces;
+
 
 void readConfig() {
     // set globally readable variable for reading settings
@@ -76,9 +79,15 @@ void basicInit(panel* w) {
     }
 
     w->setWindowTitle("plainPanel");
+
     QDir::setCurrent(getenv("HOME"));
+
     display = XOpenDisplay(getenv("DISPLAY"));
+
     panelWinID = w->winId();
+
+    visibleDesktop = KWindowSystem::currentDesktop();
+    countWorkspaces = KWindowSystem::numberOfDesktops();
 }
 
 void setPanelGeometry(panel* w) {
@@ -105,8 +114,13 @@ void setPanelGeometry(panel* w) {
     w->setFixedSize(panelWidth, panelHeight);
     w->move(ax, ay);
 
-    // _NET_WM_STRUT
-    KWindowSystem::setStrut(w->winId(), 0, 0, topStrut, bottomStrut);
+    // _NET_WM_STRUT - Bugfix #4
+    KWindowSystem::setStrut(panelWinID, 0, 0, topStrut, bottomStrut);
+
+    // Moving panel on other workspaces - Bugfix #3
+    w->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, w, []() {
+        KWindowSystem::setOnDesktop(panelWinID, KWindowSystem::currentDesktop());
+    });
 
     // Flags
     w->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
@@ -168,15 +182,11 @@ void setPanelUI(panel* w) {
             w->layout()->addWidget(appMenuPushButton);
             appletWidgets["appMenuPushButton"] = appMenuPushButton;
 
-            // temporary (?)
-            //appMenuPushButton->setIcon(QIcon("/usr/share/plainDE/artwork/plainIcons/png/menuIcon.png"));
-            appMenuPushButton->setIcon(QIcon(":/img/menuIcon.png"));
-
+            appMenuPushButton->setIcon(QIcon(config["menuIconPath"].toString()));
             appMenuPushButton->setText(" " + config["menuText"].toString());
         }
 
         else if (applet == "spacer") {
-            //w->layout()->addItem(windowListLayout);
             w->layout()->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
         }
 
@@ -207,7 +217,7 @@ void setPanelUI(panel* w) {
             QPushButton* layoutName = new QPushButton;
             appletWidgets["layoutName"] = layoutName;
 
-            short buttonWidth = fm.horizontalAdvance("ZZ");
+            short buttonWidth = fm.horizontalAdvance("AA");
             layoutName->setMaximumWidth(buttonWidth);
             layoutName->setFlat(true);
 
@@ -251,6 +261,26 @@ void setPanelUI(panel* w) {
         else if (applet == "windowlist") {
             //w->layout()->addItem(windowListLayout);
             uiLayout->addLayout(windowListLayout);
+        }
+
+        else if (applet == "workspaces") {
+            qint8 countWorkspaces = KWindowSystem::numberOfDesktops();
+            for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
+                QPushButton* currentWorkspace = new QPushButton(QString::number(workspace+1));
+                currentWorkspace->setMaximumWidth(fm.horizontalAdvance("100"));
+                //currentWorkspace->setFlat(true);
+                currentWorkspace->setStyleSheet("background-color: #9a9996; color: #000000;");
+                appletWidgets["workspace" + QString::number(workspace+1)] = currentWorkspace;
+
+                if (KWindowSystem::currentDesktop() == workspace+1) {
+                    currentWorkspace->setStyleSheet("background-color: #376594; color: #ffffff;");
+                }
+                w->layout()->addWidget(currentWorkspace);
+            }
+        }
+
+        else {
+            qDebug() << "Unknown applet:" << applet;
         }
     }
 
@@ -339,7 +369,40 @@ void setPanelUI(panel* w) {
                     windowButton->setIcon(icon);
                     winWidgets[*it] = windowButton;
                     windowListLayout->addWidget(windowButton);
+
+                    w->connect(windowButton, &QPushButton::clicked, w, [windowButton]() {
+                        KWindowInfo windowInfo(winWidgets.key(windowButton), NET::WMState | NET::XAWMState);
+                        if (windowInfo.mappingState() != NET::Visible || windowInfo.isMinimized()) {
+                            KWindowSystem::unminimizeWindow(winWidgets.key(windowButton));
+                        }
+                        else {
+                            KWindowSystem::minimizeWindow(winWidgets.key(windowButton));
+                        }
+                    });
+
+                    w->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, w, []() {
+                        WindowList wl;
+                        QList<unsigned long long> keys = winWidgets.keys();
+                        winIDs.clear();
+                        winIDs = wl.getWinList();
+
+                        foreach (unsigned long long id, keys) {
+                            if (!winIDs.contains(id)) {
+                                delete winWidgets[id];
+                                winWidgets.remove(id);
+                            }
+                        }
+                    });
                 }
+            }
+        }
+
+        else if (applet == "workspaces") {
+            for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
+                w->connect(static_cast<QPushButton*>(appletWidgets["workspace" + QString::number(workspace+1)]),
+                        &QPushButton::clicked, w, [workspace]() {
+                    KWindowSystem::setCurrentDesktop(workspace+1);
+                });
             }
         }
     }
@@ -347,7 +410,6 @@ void setPanelUI(panel* w) {
     activatedAppletsList = config["applets"].toArray().toVariantList();
 
     setRepeatingActions(w);
-
 
     // style ...
 
@@ -399,7 +461,8 @@ void panel::updateWindowList() {
 
     for (auto it = winIDs.cbegin(), end = winIDs.cend(); it != end; ++it) {
         if (*it != panelWinID) {
-            if (!winWidgets.contains(*it)) {
+            KWindowInfo desktopInfo(*it, NET::WMDesktop);
+            if (!winWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
                 KWindowInfo nameInfo(*it, NET::WMName);
                 QPixmap icon = KWindowSystem::icon(*it, -1, config["panelHeight"].toInt(), true);
                 QString winName = nameInfo.name();
@@ -413,14 +476,13 @@ void panel::updateWindowList() {
                 winWidgets[*it] = windowButton;
                 windowListLayout->addWidget(windowButton);
 
-
-                this->connect(windowButton, &QPushButton::clicked, this, [it]() {
-                    KWindowInfo windowInfo(*it, NET::WMState | NET::XAWMState);
-                    if (windowInfo.mappingState() == NET::Iconic || windowInfo.isMinimized()) {
-                        KWindowSystem::activateWindow(*it);
+                this->connect(windowButton, &QPushButton::clicked, this, [windowButton]() {
+                    KWindowInfo windowInfo(winWidgets.key(windowButton), NET::WMState | NET::XAWMState);
+                    if (windowInfo.mappingState() != NET::Visible || windowInfo.isMinimized()) {
+                        KWindowSystem::unminimizeWindow(winWidgets.key(windowButton));
                     }
                     else {
-                        KWindowSystem::minimizeWindow(*it);
+                        KWindowSystem::minimizeWindow(winWidgets.key(windowButton));
                     }
                 });
 
@@ -439,20 +501,42 @@ void panel::updateWindowList() {
                 });
             }
             else {
-                KWindowInfo nameInfo(*it, NET::WMName);
-                QString newName = nameInfo.name();
-                short sz = newName.length();
-                newName.truncate(15);
-                if (newName.length() == sz) {
-                    if (winWidgets[*it]->text() != newName) {
-                        winWidgets[*it]->setText(newName);
+                if (desktopInfo.isOnCurrentDesktop()) {
+                    KWindowInfo nameInfo(*it, NET::WMName);
+                    QString newName = nameInfo.name();
+                    short sz = newName.length();
+                    newName.truncate(15);
+                    if (newName.length() == sz) {
+                        if (winWidgets[*it]->text() != newName) {
+                            winWidgets[*it]->setText(newName);
+                        }
+                    }
+                    else {
+                        if (winWidgets[*it]->text() != newName + "...") {
+                            winWidgets[*it]->setText(newName + "...");
+                        }
                     }
                 }
                 else {
-                    if (winWidgets[*it]->text() != newName + "...") {
-                        winWidgets[*it]->setText(newName + "...");
-                    }
+                    delete winWidgets[*it];
+                    winWidgets.remove(*it);
                 }
+            }
+        }
+    }
+}
+
+void panel::updateWorkspaces() {
+    if (KWindowSystem::currentDesktop() != visibleDesktop) {
+        visibleDesktop = KWindowSystem::currentDesktop();
+        for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
+            if ((workspace+1) == visibleDesktop) {
+                appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
+                            "background-color: #376594; color: #ffffff;");
+            }
+            else {
+                appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
+                            "background-color: #9a9996; color: #000000;");
             }
         }
     }
@@ -479,7 +563,9 @@ void panel::updateAppletsData() {
         else if (applet == "windowlist") {
             updateWindowList();
         }
-
+        else if (applet == "workspaces") {
+            updateWorkspaces();
+        }
     }
 }
 
