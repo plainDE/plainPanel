@@ -18,7 +18,12 @@ struct userMenuUI {
 class UserMenuApplet
 {
 public:
-    userMenuUI __createUI__(PanelLocation location, short panelHeight, QFont font, short buttonX, short buttonXRight);
+    userMenuUI __createUI__(PanelLocation location,
+                            short panelHeight,
+                            QFont font,
+                            short buttonX,
+                            short buttonXRight,
+                            bool useDarkTheme);
     void about();
     void settings();
 };

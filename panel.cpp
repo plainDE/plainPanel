@@ -12,6 +12,7 @@
 #include <QPixmap>
 #include <QMap>
 #include <QList>
+#include <QPropertyAnimation>
 
 #include <QFont>
 #include <QPushButton>
@@ -57,6 +58,8 @@ userMenuUI _userMenuUI;
 qint8 visibleDesktop;
 qint8 countWorkspaces;
 
+QString accent;
+
 
 void readConfig() {
     // set globally readable variable for reading settings
@@ -79,6 +82,7 @@ void basicInit(panel* w) {
     }
 
     w->setWindowTitle("plainPanel");
+    w->setObjectName("panel");
 
     QDir::setCurrent(getenv("HOME"));
 
@@ -101,10 +105,10 @@ void setPanelGeometry(panel* w) {
     QScreen* primaryScreen = QGuiApplication::primaryScreen();
 
     // Size & location
-    short ax = 0, ay = 0;
-    short panelWidth = primaryScreen->size().width();
-    short panelHeight = config["panelHeight"].toInt();
-    short topStrut = panelHeight, bottomStrut = 0;
+    qint8 ax = 0, ay = 0;
+    unsigned short panelWidth = primaryScreen->size().width();
+    unsigned short panelHeight = config["panelHeight"].toInt();
+    qint8 topStrut = panelHeight, bottomStrut = 0;
 
     if (config["panelLocation"].toString() == "bottom") {
         ay = primaryScreen->size().height() - panelHeight;
@@ -142,22 +146,22 @@ void setPanelUI(panel* w) {
     panelFont.setPointSize(config["fontSize"].toInt());
     w->setFont(panelFont);
 
-    // Set style
-    // general
-
-    /*if (config["theme"] == "light") {
+    // Style
+    if (config["theme"] == "light") {
         QFile stylesheetReader(":/styles/styles/general-light.qss");
         stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
         QTextStream styleSheet(&stylesheetReader);
         w->setStyleSheet(styleSheet.readAll());
-    }*/
+    }
+    else {
+        QFile stylesheetReader(":/styles/styles/general-dark.qss");
+        stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
+        QTextStream styleSheet(&stylesheetReader);
+        w->setStyleSheet(styleSheet.readAll());
+    }
 
-    // panel
-    QFile stylesheetReader(":/styles/styles/panel.qss");
-    stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
-    QTextStream styleSheet(&stylesheetReader);
-    w->setStyleSheet(styleSheet.readAll());
-
+    // Set accent
+    accent = config["accent"].toString();
 
     // Icons
     QIcon::setThemeName(config["iconTheme"].toString());
@@ -167,13 +171,13 @@ void setPanelUI(panel* w) {
     uiLayout->setContentsMargins(1, 1, 1, 1);
     w->setLayout(uiLayout);
 
-
     // Applets: show applets
     QFontMetrics fm(panelFont);
     location = (config["panelLocation"].toString() == "top") ? top : bottom;
 
     /* We could use QVariantList::contains, but this approach will not observe
-     * order of placing applets, using loop. */
+     * order of placing applets, using loop.*/
+
     QVariantList activeAppletsList = config["applets"].toArray().toVariantList();
     foreach (QVariant applet, activeAppletsList) {
         if (applet == "appmenu") {
@@ -182,7 +186,13 @@ void setPanelUI(panel* w) {
             w->layout()->addWidget(appMenuPushButton);
             appletWidgets["appMenuPushButton"] = appMenuPushButton;
 
-            appMenuPushButton->setIcon(QIcon(config["menuIconPath"].toString()));
+            if (QIcon::hasThemeIcon(config["menuIcon"].toString())) {
+                appMenuPushButton->setIcon(QIcon::fromTheme(config["menuIcon"].toString()));
+            }
+            else {
+                appMenuPushButton->setIcon(QIcon(config["menuIcon"].toString()));
+            }
+
             appMenuPushButton->setText(" " + config["menuText"].toString());
         }
 
@@ -259,7 +269,6 @@ void setPanelUI(panel* w) {
         }
 
         else if (applet == "windowlist") {
-            //w->layout()->addItem(windowListLayout);
             uiLayout->addLayout(windowListLayout);
         }
 
@@ -268,12 +277,11 @@ void setPanelUI(panel* w) {
             for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
                 QPushButton* currentWorkspace = new QPushButton(QString::number(workspace+1));
                 currentWorkspace->setMaximumWidth(fm.horizontalAdvance("100"));
-                //currentWorkspace->setFlat(true);
                 currentWorkspace->setStyleSheet("background-color: #9a9996; color: #000000;");
                 appletWidgets["workspace" + QString::number(workspace+1)] = currentWorkspace;
 
                 if (KWindowSystem::currentDesktop() == workspace+1) {
-                    currentWorkspace->setStyleSheet("background-color: #376594; color: #ffffff;");
+                    currentWorkspace->setStyleSheet("background-color: " + accent + "; color: #ffffff;");
                 }
                 w->layout()->addWidget(currentWorkspace);
             }
@@ -292,7 +300,8 @@ void setPanelUI(panel* w) {
             _menuUI = menu->__createUI__(location, config["panelHeight"].toInt(),
                                         panelFont, appletWidgets["appMenuPushButton"]->x(),
                                         appletWidgets["appMenuPushButton"]->geometry().topRight().x(),
-                                        config["appMenuTriangularTabs"].toBool());
+                                        config["appMenuTriangularTabs"].toBool(), accent,
+                                        ((config["theme"].toString() == "dark") ? true : false));
             w->connect(static_cast<QPushButton*>(appletWidgets["appMenuPushButton"]), &QPushButton::clicked, w, &panel::toggleAppMenu);
         }
 
@@ -323,13 +332,16 @@ void setPanelUI(panel* w) {
             }
 
             _dateTimeUI = _dateTime.__createUI__(location,
-                                                    config["panelHeight"].toInt(),
-                                                    panelFont,
-                                                    appletWidgets["dateTimePushButton"]->pos().x(),
-                                                    appletWidgets["dateTimePushButton"]->geometry().topRight().x(),
-                                                    day);
+                                                 config["panelHeight"].toInt(),
+                                                 panelFont,
+                                                 appletWidgets["dateTimePushButton"]->pos().x(),
+                                                 appletWidgets["dateTimePushButton"]->geometry().topRight().x(),
+                                                 day);
 
-            w->connect(static_cast<QPushButton*>(appletWidgets["dateTimePushButton"]), &QPushButton::clicked, w, &panel::toggleCalendar);
+            w->connect(static_cast<QPushButton*>(appletWidgets["dateTimePushButton"]),
+                       &QPushButton::clicked,
+                       w,
+                       &panel::toggleCalendar);
         }
 
         else if (applet == "kblayout") {
@@ -339,16 +351,23 @@ void setPanelUI(panel* w) {
 
         else if (applet == "usermenu") {
             _userMenuUI = _userMenu.__createUI__(location,
-                                                 config["panelHeight"].toInt(),
-                                                 panelFont,
-                                                 appletWidgets["userMenuPushButton"]->pos().x(),
-                                                 appletWidgets["userMenuPushButton"]->geometry().topRight().x());
+                                          config["panelHeight"].toInt(),
+                                          panelFont,
+                                          appletWidgets["userMenuPushButton"]->pos().x(),
+                                          appletWidgets["userMenuPushButton"]->geometry().topRight().x(),
+                                          ((config["theme"].toString() == "dark") ? true : false));
 
-            w->connect(static_cast<QPushButton*>(appletWidgets["userMenuPushButton"]), &QPushButton::clicked, w, &panel::toggleUserMenu);
+            w->connect(static_cast<QPushButton*>(appletWidgets["userMenuPushButton"]),
+                       &QPushButton::clicked,
+                       w,
+                       &panel::toggleUserMenu);
         }
 
         else if (applet == "volume") {
-            w->connect(static_cast<QDial*>(appletWidgets["volumeDial"]), &QDial::valueChanged, w, &panel::setVolume);
+            w->connect(static_cast<QDial*>(appletWidgets["volumeDial"]),
+                       &QDial::valueChanged,
+                       w,
+                       &panel::setVolume);
         }
 
         else if (applet == "windowlist") {
@@ -412,7 +431,6 @@ void setPanelUI(panel* w) {
     setRepeatingActions(w);
 
     // style ...
-
 }
 
 
@@ -532,7 +550,7 @@ void panel::updateWorkspaces() {
         for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
             if ((workspace+1) == visibleDesktop) {
                 appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
-                            "background-color: #376594; color: #ffffff;");
+                            "background-color: " + accent + "; color: #ffffff;");
             }
             else {
                 appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
@@ -570,6 +588,26 @@ void panel::updateAppletsData() {
 }
 
 
+void panel::animation(panel* w) {
+    if (config["enableAnimation"].toBool()) {
+        QPropertyAnimation* panelAnimation = new QPropertyAnimation(w, "pos");
+        panelAnimation->setDuration(250);
+
+        QScreen* primaryScreen = QGuiApplication::primaryScreen();
+
+        unsigned short panelHeight = config["panelHeight"].toInt();
+
+        if (config["panelLocation"].toString() == "top") {
+            panelAnimation->setStartValue(QPoint(0, -panelHeight));
+            panelAnimation->setEndValue(QPoint(0, 0));
+        }
+        else {
+            panelAnimation->setStartValue(QPoint(0, primaryScreen->size().height()));
+            panelAnimation->setEndValue(QPoint(0, primaryScreen->size().height() - panelHeight));
+        }
+        panelAnimation->start();
+    }
+}
 
 void autostart(panel* w) {
     QStringList autostartEntries = config["autostart"].toVariant().toStringList();
@@ -583,19 +621,20 @@ void autostart(panel* w) {
         desktopFileReader.sync();
         desktopFileReader.beginGroup("Desktop Entry");
             exec = desktopFileReader.value("Exec").toString();
+        desktopFileReader.endGroup();
 
+        /* https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html
+         * 'The Exec key' */
+        if (exec[exec.length()-2] == "%") {
+            exec.chop(2);
+        }
         QProcess* process = new QProcess(w);
         process->start(exec);
     }
 }
 
-
-
-void testPoint(panel* w) {
+void testpoint(panel* w) {
     // here you can put your code to test
-
-    qDebug() << "Desktop:" << KWindowSystem::currentDesktop();
-
 
 }
 
@@ -604,9 +643,10 @@ panel::panel(QWidget *parent): QWidget(parent) {
     readConfig();
     setPanelGeometry(this);
     setPanelUI(this);
+    animation(this);
     autostart(this);
 
-    testPoint(this);
+    testpoint(this);
 }
 
 panel::~panel() {

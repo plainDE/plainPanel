@@ -8,8 +8,10 @@ QHash<QListWidgetItem*,QString> favExecData;
 QVariantList __favDesktopFiles__;
 
 menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont font,
-                             short buttonX, short buttonXRight, bool triangularTabs) {
+                             short buttonX, short buttonXRight, bool triangularTabs,
+                             QString accent, bool useDarkTheme) {
     QWidget* appMenuWidget = new QWidget;
+    appMenuWidget->setObjectName("appMenu");
     appMenuWidget->setWindowTitle("plainPanel App Menu");
 
     // Window flags
@@ -37,6 +39,20 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     appMenuWidget->setFixedSize(menuWidth, menuHeight);
     appMenuWidget->move(ax, ay);
 
+    // Style
+    if (useDarkTheme) {
+        QFile stylesheetReader(":/styles/styles/general-dark.qss");
+        stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
+        QTextStream styleSheet(&stylesheetReader);
+        appMenuWidget->setStyleSheet(styleSheet.readAll());
+    }
+    else {
+        QFile stylesheetReader(":/styles/styles/general-light.qss");
+        stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
+        QTextStream styleSheet(&stylesheetReader);
+        appMenuWidget->setStyleSheet(styleSheet.readAll());
+    }
+
     // UI: Menu
     appMenuWidget->setFont(font);
     QVBoxLayout* mainLayout = new QVBoxLayout;
@@ -48,7 +64,6 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
         menuTabWidget->setTabShape(QTabWidget::Triangular);
     }
     appMenuWidget->layout()->addWidget(menuTabWidget);
-
 
     // UI: All applications tab
     QWidget* allAppsTab = new QWidget;
@@ -65,6 +80,7 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
 
     QListWidget* menuAppsList = new QListWidget;
     allAppsTab->layout()->addWidget(menuAppsList);
+    menuAppsList->setStyleSheet("QListView::item:selected { background-color: " + accent + "; color: #ffffff };");
 
     menuTabWidget->addTab(allAppsTab, "All applications");
 
@@ -78,49 +94,9 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     favAppsTab->setLayout(favLayout);
 
     QListWidget* favAppsList = new QListWidget;
+    favAppsList->setStyleSheet("QListView::item:selected { background-color: " + accent + "; color: #ffffff };");
     favAppsTab->layout()->addWidget(favAppsList);
-
-    //QPushButton* editFavListPushButton = new QPushButton;
-    //editFavListPushButton->setText("Edit favorites");
-    //favAppsTab->layout()->addWidget(editFavListPushButton);
-
     menuTabWidget->addTab(favAppsTab, "Favorites");
-
-
-    // UI: Edit favorite apps widget
-    /*QWidget* editFavsWidget = new QWidget;
-    editFavsWidget->setBaseSize(350, 500);
-    editFavsWidget->setWindowTitle("Edit favorites");
-
-    QHBoxLayout* editLayout = new QHBoxLayout;
-    editLayout->setContentsMargins(4, 4, 4, 4);
-    editFavsWidget->setLayout(editLayout);
-
-    QListWidget* avaliableApps = new QListWidget;
-    editFavsWidget->layout()->addWidget(avaliableApps);
-    QListWidget* addedApps = new QListWidget;
-    editFavsWidget->layout()->addWidget(addedApps);
-
-    QVBoxLayout* buttonsLayout = new QVBoxLayout;
-
-    QPushButton* addSelected = new QPushButton;
-    addSelected->setText(">>");
-    buttonsLayout->addWidget(addSelected);
-
-    QPushButton* removeSelected = new QPushButton;
-    removeSelected->setText("<<");
-    buttonsLayout->addWidget(removeSelected);
-
-    QPushButton* moveUp = new QPushButton;
-    moveUp->setText("↑");
-    buttonsLayout->addWidget(moveUp);
-
-    QPushButton* moveDown = new QPushButton;
-    moveDown->setText("↓");
-    buttonsLayout->addWidget(moveDown);
-
-    editLayout->addLayout(buttonsLayout);*/
-
 
     // Make connections
     allAppsTab->connect(menuSearchBox, &QLineEdit::textEdited, allAppsTab,
@@ -137,19 +113,6 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
                         [favAppsList, appMenuWidget, this]() {
         execApp(favExecData[favAppsList->selectedItems()[0]], appMenuWidget);
     });
-
-    /*favAppsTab->connect(editFavListPushButton, &QPushButton::clicked, favAppsTab,
-                        [editFavsWidget, avaliableApps, addedApps, appMenuWidget, this]() {
-        if (editFavsWidget->isHidden()) {
-            editFavsWidget->show();
-
-            buildMenu(avaliableApps);
-            buildFavMenu(addedApps, __favDesktopFiles__);
-
-            appMenuWidget->hide();
-        }
-    });*/
-
 
     return {appMenuWidget, menuSearchBox, menuAppsList, favAppsList, menuTabWidget};
 }
@@ -182,6 +145,7 @@ App AppMenu::readDesktopFile(QString pathToCurrentDesktopFile) {
         else {
             myApp.display = false;
         }
+    desktopFileReader.endGroup();
 
     return myApp;
 }

@@ -32,11 +32,9 @@ struct App {
 
 class AppMenu : public Applet {
 public:
-    QString __appletName__ = "Application Menu";
-    AppletType __appletType__ = appMenu;
-    bool __needsToBeUpdated__ = false;
     menuUI __createUI__(PanelLocation location, short panelHeight, QFont font,
-                        short buttonX, short buttonXRight, bool triangularTabs);
+                        short buttonX, short buttonXRight, bool triangularTabs,
+                        QString accent, bool useDarkTheme);
     void makeItem(QString name, QIcon icon, QListWidgetItem* item);
     App readDesktopFile(QString pathToCurrentDesktopFile);
     void buildMenu(QListWidget* appList, QString searchRequest);

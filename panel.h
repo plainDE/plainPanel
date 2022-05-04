@@ -42,7 +42,9 @@ class panel : public QWidget
 public:   
     panel(QWidget *parent = nullptr);
     void updateFavApps(QJsonArray* newFavorites);
+    void animation(panel* w);
     ~panel();
+
 
 public slots:
     void toggleAppMenu();
