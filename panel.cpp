@@ -68,6 +68,11 @@ void readConfig() {
     QFile file;
     QString data;
 
+    if (!QFile::exists(homeDirectory + "/.config/plainDE/config.json")) {
+        qDebug() << homeDirectory + "/.config/plainDE/config.json" + " does not exist. Generating new...";
+        system("python3 /usr/share/plainDE/genconfig.py");
+    }
+
     file.setFileName(homeDirectory + "/.config/plainDE/config.json");
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     data = file.readAll();
@@ -76,7 +81,7 @@ void readConfig() {
 }
 
 void basicInit(panel* w) {
-    if (QString::compare(getenv("XDG_SESSION_TYPE"), "x11")) {
+    if (QString::compare(getenv("XDG_SESSION_TYPE"), "x11") != 0) {
         qDebug() << "plainPanel currently works only on X11. Quitting...";
         QApplication::quit();
     }
