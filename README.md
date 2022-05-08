@@ -40,6 +40,18 @@
   <h2>Customizing</h2>
   You can either edit ~/.config/plainDE/config.json manually or use <a href="https://github.com/plainDE/plainControlCenter">plainControlCenter</a>.
   
+  <h2>How can I help you?</h2>
+  <ul>
+    <li>Create a new applet</li>
+    <li>Translate plainPanel into another language (soon)</li>
+    <li>Fix a bug or suggest solution for it</li>
+    <li>Suggest an interesting idea</li>
+    <li>...</li>
+  </ul>
+  
+  Any help is appreciated.
+  Email us at <a href="mailto:segfault@plainde.org">segfault@plainde.org</a>
+  
   <h2>Miscellaneous</h2>
   <b>Note</b>. Mint-Y is recommended icon theme (we use few Mint-Y-only icons).<br>
   <b>Note</b>. Use setxkbmap to change your keyboard layout.
