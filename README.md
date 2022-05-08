@@ -19,13 +19,13 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/preferences-desktop-user.png"> User menu<br>
   
   <h2>Screenshots</h2>
-  <img src="scr-0.1.png" width=640 height=480>
+  <img src="scr0.1.1.png" width=640 height=480>
   
   <h2>Dependencies</h2>
   <code>qt6-base</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>
   
   <h2>Installation</h2>
-  You can either use <a href="https://github.com/plainDE/plainInstaller">plainInstaller</a>, a script that will download, compile and install everything automatically, or install plainPanel only.<br>
+  You can either use <a href="https://github.com/plainDE/plainInstaller">plainInstaller</a>, a script that will download, compile and install everything automatically, or install plainPanel only.<br><br>
   
   <div align="left">
     1. <code>git clone https://github.com/plainDE/plainPanel && cd plainPanel</code><br>
@@ -33,6 +33,15 @@
     3. <code>make</code><br>
     4. <code>sudo mkdir /usr/share/plainDE && sudo cp ./plainPanel /usr/share/plainDE/</code><br>
     5. <code>sudo cp readme-icon.png /usr/share/plainDE/menuIcon.png</code>
-  </div>
+  </div><br>
+  
+  Now add <code>plainPanel</code> to OpenBox/FluxBox/... autostart and enjoy!
+  
+  <h2>Customizing</h2>
+  You can either edit ~/.config/plainDE/config.json manually or use <a href="https://github.com/plainDE/plainControlCenter">plainControlCenter</a>.
+  
+  <h2>Miscellaneous</h2>
+  <b>Note</b>. Mint-Y is recommended icon theme (we use few Mint-Y-only icons).<br>
+  <b>Note</b>. Use setxkbmap to change your keyboard layout.
   
 </div>
