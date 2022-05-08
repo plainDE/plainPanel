@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="readme-icon.png">
+  <img src="readme-icon.png" width="96">
   <h1>plainPanel</h1>
   <p>Lightweight panel for OpenBox, FluxBox and other window managers.</p>
  
