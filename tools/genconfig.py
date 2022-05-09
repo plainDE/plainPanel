@@ -12,6 +12,7 @@ config = {'accent': '#376594',
 		  'background': '',
 		  'dateFormat': 'MMM d',
 		  'enableAnimation': True,
+		  'expandPanel': True,
 		  'favApps': [],
 		  'firstDayOfWeek': 'Monday',
 		  'fontFamily': 'Open Sans',
@@ -22,18 +23,15 @@ config = {'accent': '#376594',
 		  'panelHeight': 28,
 		  'panelLocation': 'top',
 		  'showDate': True,
-		  'theme': 'light',
-		  'timeFormat': 'h:mm AP'}
+		  'theme': 'gradient-light.qss',
+		  'timeFormat': 'h:mm AP',
+		  'xOffset': 0}
 
 
 userName = os.getenv('USER')
 dirPath = '/home/' + userName + '/.config/plainDE'
-
-try:
-	os.mkdir(dirPath)
-except FileNotFoundError:
-	os.mkdir('/home/' + userName + '/.config')
-	os.mkdir(dirPath)
+os.mkdir(dirPath)
 
 with open(dirPath + '/config.json', 'w') as configWriter:
 	json.dump(config, configWriter)
+
