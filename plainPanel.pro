@@ -19,7 +19,6 @@ SOURCES += \
     applets/appmenu/appmenu.cpp \
     applets/datetime/datetime.cpp \
     applets/kblayout/kblayout.cpp \
-    applets/sni-tray/tray.cpp \
     applets/usermenu/usermenu.cpp \
     applets/volume/volume.cpp \
     applets/windowlist/windowlist.cpp \
@@ -32,7 +31,6 @@ HEADERS += \
     applets/appmenu/appmenu.h \
     applets/datetime/datetime.h \
     applets/kblayout/kblayout.h \
-    applets/sni-tray/tray.h \
     applets/usermenu/usermenu.h \
     applets/volume/volume.h \
     applets/windowlist/windowlist.h \
