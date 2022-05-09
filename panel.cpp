@@ -1,15 +1,9 @@
 #include "panel.h"
 
-#include <QApplication>
 #include <QFile>
 #include <QJsonObject>
 #include <QJsonDocument>
-#include <QScreen>
 #include <QTimer>
-#include <QJsonArray>
-#include <QJsonValue>
-#include <QIcon>
-#include <QPixmap>
 #include <QMap>
 #include <QList>
 #include <QPropertyAnimation>
@@ -30,6 +24,7 @@
 #include "applets/usermenu/usermenu.h"
 #include "applets/volume/volume.h"
 #include "applets/windowlist/windowlist.h"
+#include "applets/sni-tray/tray.h"
 
 Display* display;
 QJsonObject config;
@@ -37,6 +32,7 @@ QMap<QString,QWidget*> appletWidgets;
 PanelLocation location;
 QFont panelFont;
 WId panelWinID;
+QScreen* primaryScreen;
 
 QVariantList activatedAppletsList;
 
@@ -46,6 +42,7 @@ menuUI _menuUI;
 QHBoxLayout* windowListLayout = new QHBoxLayout;
 QList<WId> winIDs;
 QHash<WId,QPushButton*> winWidgets;
+unsigned short minWidth;
 
 DateTimeApplet _dateTime;
 dateTimeUI _dateTimeUI;
@@ -54,6 +51,9 @@ KbLayoutApplet _kbLayout;
 
 UserMenuApplet _userMenu;
 userMenuUI _userMenuUI;
+
+TrayApplet _tray;
+QStringList* trayEntries;
 
 qint8 visibleDesktop;
 qint8 countWorkspaces;
@@ -77,7 +77,7 @@ void readConfig() {
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     data = file.readAll();
     file.close();
-    config = QJsonDocument::fromJson(data.toUtf8()).object();
+    config = QJsonDocument::fromJson(data.toUtf8()).object();   
 }
 
 void basicInit(panel* w) {
@@ -97,20 +97,19 @@ void basicInit(panel* w) {
 
     visibleDesktop = KWindowSystem::currentDesktop();
     countWorkspaces = KWindowSystem::numberOfDesktops();
+
+    primaryScreen = QGuiApplication::primaryScreen();
 }
 
 void setPanelGeometry(panel* w) {
     // size, location, monitor settings, window flags
 
     // Get screens
-    //QList<QScreen*> screensList = QGuiApplication::screens();
+    // QList<QScreen*> screensList = QGuiApplication::screens();
     // QGuiApplication::primaryScreen()->name();
 
-    // Find primary screen
-    QScreen* primaryScreen = QGuiApplication::primaryScreen();
-
     // Size & location
-    qint8 ax = 0, ay = 0;
+    unsigned short ax = 0, ay = 0;
     unsigned short panelWidth = primaryScreen->size().width();
     unsigned short panelHeight = config["panelHeight"].toInt();
     qint8 topStrut = panelHeight, bottomStrut = 0;
@@ -120,7 +119,16 @@ void setPanelGeometry(panel* w) {
         topStrut = 0;
         bottomStrut = panelHeight;
     }
-    w->setFixedSize(panelWidth, panelHeight);
+
+    w->setFixedHeight(panelHeight);
+    w->setMaximumWidth(panelWidth);
+    if (config["expandPanel"].toBool()) {
+        w->setFixedWidth(panelWidth);
+    }
+    else {
+        ax = config["xOffset"].toInt();
+    }
+
     w->move(ax, ay);
 
     // _NET_WM_STRUT - Bugfix #4
@@ -136,11 +144,25 @@ void setPanelGeometry(panel* w) {
     w->setAttribute(Qt::WA_X11NetWmWindowTypeDock);
 }
 
+void panel::updateGeometry() {
+    unsigned short panelWidth = primaryScreen->size().width();
+    unsigned short panelHeight = config["panelHeight"].toInt();
+
+    this->setFixedHeight(panelHeight);
+    this->setGeometry(this->geometry().x(),
+                      this->geometry().y(),
+                      minWidth,
+                      panelHeight);
+    if (config["expandPanel"].toBool()) {
+        this->setFixedWidth(panelWidth);
+    }
+}
+
 void setRepeatingActions(panel* w) {
     // here we bring to life main QTimer for updating applets data
 
     QTimer* updateAppletsDataTimer = new QTimer(w);  // we should find a better way to update applets
-    updateAppletsDataTimer->setInterval(500);
+    updateAppletsDataTimer->setInterval(200);
     w->connect(updateAppletsDataTimer, &QTimer::timeout, w, &panel::updateAppletsData);
     updateAppletsDataTimer->start();
 }
@@ -151,19 +173,11 @@ void setPanelUI(panel* w) {
     panelFont.setPointSize(config["fontSize"].toInt());
     w->setFont(panelFont);
 
-    // Style
-    if (config["theme"] == "light") {
-        QFile stylesheetReader(":/styles/styles/general-light.qss");
-        stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
-        QTextStream styleSheet(&stylesheetReader);
-        w->setStyleSheet(styleSheet.readAll());
-    }
-    else {
-        QFile stylesheetReader(":/styles/styles/general-dark.qss");
-        stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
-        QTextStream styleSheet(&stylesheetReader);
-        w->setStyleSheet(styleSheet.readAll());
-    }
+    // Theme
+    QFile stylesheetReader("/usr/share/plainDE/styles/" + config["theme"].toString());
+    stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
+    QTextStream styleSheet(&stylesheetReader);
+    w->setStyleSheet(styleSheet.readAll());
 
     // Set accent
     accent = config["accent"].toString();
@@ -306,7 +320,7 @@ void setPanelUI(panel* w) {
                                         panelFont, appletWidgets["appMenuPushButton"]->x(),
                                         appletWidgets["appMenuPushButton"]->geometry().topRight().x(),
                                         config["appMenuTriangularTabs"].toBool(), accent,
-                                        ((config["theme"].toString() == "dark") ? true : false));
+                                        config["theme"].toString());
             w->connect(static_cast<QPushButton*>(appletWidgets["appMenuPushButton"]), &QPushButton::clicked, w, &panel::toggleAppMenu);
         }
 
@@ -360,7 +374,7 @@ void setPanelUI(panel* w) {
                                           panelFont,
                                           appletWidgets["userMenuPushButton"]->pos().x(),
                                           appletWidgets["userMenuPushButton"]->geometry().topRight().x(),
-                                          ((config["theme"].toString() == "dark") ? true : false));
+                                          config["theme"].toString());
 
             w->connect(static_cast<QPushButton*>(appletWidgets["userMenuPushButton"]),
                        &QPushButton::clicked,
@@ -390,9 +404,9 @@ void setPanelUI(panel* w) {
                         winName += "...";
                     }
                     QPushButton* windowButton = new QPushButton(winName);
-                    windowButton->setIcon(icon);
                     winWidgets[*it] = windowButton;
                     windowListLayout->addWidget(windowButton);
+                    windowButton->setIcon(icon);
 
                     w->connect(windowButton, &QPushButton::clicked, w, [windowButton]() {
                         KWindowInfo windowInfo(winWidgets.key(windowButton), NET::WMState | NET::XAWMState);
@@ -432,10 +446,9 @@ void setPanelUI(panel* w) {
     }
 
     activatedAppletsList = config["applets"].toArray().toVariantList();
+    minWidth = w->width();
 
     setRepeatingActions(w);
-
-    // style ...
 }
 
 
@@ -446,7 +459,24 @@ void panel::toggleAppMenu() {
         menu->buildMenu(_menuUI.appListWidget, "");
         menu->buildFavMenu(_menuUI.favListWidget, config["favApps"].toArray().toVariantList());
         _menuUI.tabWidget->setCurrentIndex(0);
+
+        short ax;
+        short offset = (config["expandPanel"].toBool() ? 0 : config["xOffset"].toInt());
+        short buttonX = appletWidgets["appMenuPushButton"]->x();
+        short buttonXRight = appletWidgets["appMenuPushButton"]->geometry().topRight().x();
+        short appMenuWidth = 450;
+
+        if (primaryScreen->geometry().width() - (buttonX + offset) >= appMenuWidth) {
+            ax = buttonX + offset;
+        }
+        else {
+            ax = (buttonXRight + offset) - appMenuWidth;
+        }
+
+        _menuUI.menuWidget->move(ax,
+                                 _menuUI.menuWidget->geometry().y());
         _menuUI.menuWidget->show();
+
     }
     else {
         _menuUI.menuWidget->hide();
@@ -455,6 +485,20 @@ void panel::toggleAppMenu() {
 
 void panel::toggleCalendar() {
     if (!_dateTimeUI.calendarWidget->isVisible()) {
+        short ax;
+        short offset = (config["expandPanel"].toBool() ? 0 : config["xOffset"].toInt());
+        short buttonX = appletWidgets["dateTimePushButton"]->x();
+        short buttonXRight = appletWidgets["dateTimePushButton"]->geometry().topRight().x();
+        short calendarWidth = 300;
+        if (primaryScreen->geometry().width() - (buttonX + offset) >= calendarWidth) {
+            ax = buttonX + offset;
+        }
+        else {
+            ax = (buttonXRight + offset) - calendarWidth;
+        }
+
+        _dateTimeUI.calendarWidget->move(ax,
+                                         _dateTimeUI.calendarWidget->geometry().y());
         _dateTimeUI.calendarWidget->show();
     }
     else _dateTimeUI.calendarWidget->hide();
@@ -462,6 +506,22 @@ void panel::toggleCalendar() {
 
 void panel::toggleUserMenu() {
     if (!_userMenuUI.userMenuWidget->isVisible()) {
+        QFontMetrics fm(panelFont);
+        short userMenuWidth = fm.horizontalAdvance("About plainDE") + 20;
+        short ax;
+        short offset = (config["expandPanel"].toBool() ? 0 : config["xOffset"].toInt());
+        short buttonX = appletWidgets["userMenuPushButton"]->x();
+        short buttonXRight = appletWidgets["userMenuPushButton"]->geometry().topRight().x();
+
+        if (primaryScreen->geometry().width() - (buttonX + offset) >= userMenuWidth) {
+            ax = buttonX + offset;
+        }
+        else {
+            ax = (buttonXRight + offset) - userMenuWidth;
+        }
+
+        _userMenuUI.userMenuWidget->move(ax,
+                                         _userMenuUI.userMenuWidget->geometry().y());
         _userMenuUI.userMenuWidget->show();
     }
     else _userMenuUI.userMenuWidget->hide();
@@ -585,13 +645,15 @@ void panel::updateAppletsData() {
 
         else if (applet == "windowlist") {
             updateWindowList();
+            if (!config["expandPanel"].toBool()) {
+                updateGeometry();
+            }
         }
         else if (applet == "workspaces") {
             updateWorkspaces();
         }
     }
 }
-
 
 void panel::animation(panel* w) {
     if (config["enableAnimation"].toBool()) {
@@ -601,14 +663,15 @@ void panel::animation(panel* w) {
         QScreen* primaryScreen = QGuiApplication::primaryScreen();
 
         unsigned short panelHeight = config["panelHeight"].toInt();
+        unsigned short ax = (config["expandPanel"].toBool() ? 0 : config["xOffset"].toInt());
 
         if (config["panelLocation"].toString() == "top") {
-            panelAnimation->setStartValue(QPoint(0, -panelHeight));
-            panelAnimation->setEndValue(QPoint(0, 0));
+            panelAnimation->setStartValue(QPoint(ax, -panelHeight));
+            panelAnimation->setEndValue(QPoint(ax, 0));
         }
         else {
-            panelAnimation->setStartValue(QPoint(0, primaryScreen->size().height()));
-            panelAnimation->setEndValue(QPoint(0, primaryScreen->size().height() - panelHeight));
+            panelAnimation->setStartValue(QPoint(ax, primaryScreen->size().height()));
+            panelAnimation->setEndValue(QPoint(ax, primaryScreen->size().height() - panelHeight));
         }
         panelAnimation->start();
     }

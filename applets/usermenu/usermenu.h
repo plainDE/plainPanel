@@ -23,7 +23,7 @@ public:
                             QFont font,
                             short buttonX,
                             short buttonXRight,
-                            bool useDarkTheme);
+                            QString theme);
     void about();
     void settings();
 };

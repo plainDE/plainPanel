@@ -19,7 +19,7 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/preferences-desktop-user.png"> User menu<br>
   
   <h2>Screenshots</h2>
-  <img src="scr0.1.2a.png" width=640 height=480>
+  <img src="scr0.1.3.png" width=640 height=480>
   
   <h2>Dependencies</h2>
   <code>qt6-base</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>

@@ -1,6 +1,6 @@
 QT       += core gui KWindowSystem
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
+greaterThan(QT_MAJOR_VERSION, 4): QT += widgets dbus
 
 CONFIG += c++11
 CONFIG += x11
@@ -19,6 +19,7 @@ SOURCES += \
     applets/appmenu/appmenu.cpp \
     applets/datetime/datetime.cpp \
     applets/kblayout/kblayout.cpp \
+    applets/sni-tray/tray.cpp \
     applets/usermenu/usermenu.cpp \
     applets/volume/volume.cpp \
     applets/windowlist/windowlist.cpp \
@@ -31,6 +32,7 @@ HEADERS += \
     applets/appmenu/appmenu.h \
     applets/datetime/datetime.h \
     applets/kblayout/kblayout.h \
+    applets/sni-tray/tray.h \
     applets/usermenu/usermenu.h \
     applets/volume/volume.h \
     applets/windowlist/windowlist.h \
@@ -47,8 +49,9 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 DISTFILES += \
     devnotes.txt \
-    styles/dark.qss \
-    styles/light.qss
-
-RESOURCES += \
-    styles.qrc
+    styles/general-light.qss \
+    styles/gnome-colors-light.qss \
+    styles/gradient-dark.qss \
+    styles/gradient-light.qss \
+    styles/still-dark.qss \
+    styles/still-light.qss

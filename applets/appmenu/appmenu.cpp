@@ -9,7 +9,7 @@ QVariantList __favDesktopFiles__;
 
 menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont font,
                              short buttonX, short buttonXRight, bool triangularTabs,
-                             QString accent, bool useDarkTheme) {
+                             QString accent, QString theme) {
     QWidget* appMenuWidget = new QWidget;
     appMenuWidget->setObjectName("appMenu");
     appMenuWidget->setWindowTitle("plainPanel App Menu");
@@ -39,19 +39,11 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     appMenuWidget->setFixedSize(menuWidth, menuHeight);
     appMenuWidget->move(ax, ay);
 
-    // Style
-    if (useDarkTheme) {
-        QFile stylesheetReader(":/styles/styles/general-dark.qss");
-        stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
-        QTextStream styleSheet(&stylesheetReader);
-        appMenuWidget->setStyleSheet(styleSheet.readAll());
-    }
-    else {
-        QFile stylesheetReader(":/styles/styles/general-light.qss");
-        stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
-        QTextStream styleSheet(&stylesheetReader);
-        appMenuWidget->setStyleSheet(styleSheet.readAll());
-    }
+    // Theme
+    QFile stylesheetReader("/usr/share/plainDE/styles/" + theme);
+    stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
+    QTextStream styleSheet(&stylesheetReader);
+    appMenuWidget->setStyleSheet(styleSheet.readAll());
 
     // UI: Menu
     appMenuWidget->setFont(font);

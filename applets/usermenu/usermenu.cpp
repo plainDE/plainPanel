@@ -1,7 +1,7 @@
 #include "usermenu.h"
 
 userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeight, QFont font,
-                                        short buttonX, short buttonXRight, bool useDarkTheme) {
+                                        short buttonX, short buttonXRight, QString theme) {
     QWidget* userMenuWidget = new QWidget;
     userMenuWidget->setObjectName("userMenu");
     QFontMetrics fm(font);
@@ -31,19 +31,11 @@ userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeigh
     userMenuWidget->setFixedSize(userMenuWidth, userMenuHeight);
     userMenuWidget->move(ax, ay);
 
-    // Style
-    if (useDarkTheme) {
-        QFile stylesheetReader(":/styles/styles/general-dark.qss");
-        stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
-        QTextStream styleSheet(&stylesheetReader);
-        userMenuWidget->setStyleSheet(styleSheet.readAll() + "QPushButton { text-align: left; }");
-    }
-    else {
-        QFile stylesheetReader(":/styles/styles/general-light.qss");
-        stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
-        QTextStream styleSheet(&stylesheetReader);
-        userMenuWidget->setStyleSheet(styleSheet.readAll() + "QPushButton { text-align: left; }");
-    }
+    // Theme
+    QFile stylesheetReader("/usr/share/plainDE/styles/" + theme);
+    stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
+    QTextStream styleSheet(&stylesheetReader);
+    userMenuWidget->setStyleSheet(styleSheet.readAll() + "QPushButton { text-align: left; }");
 
     // Set font
     userMenuWidget->setFont(font);

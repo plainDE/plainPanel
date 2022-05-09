@@ -34,9 +34,6 @@ dateTimeUI DateTimeApplet::__createUI__(PanelLocation location, short panelHeigh
     // Set font
     calendarWidget->setFont(font);
 
-
-
-
     // UI
     QVBoxLayout* calendarWidgetLayout = new QVBoxLayout;
     calendarWidgetLayout->setContentsMargins(1, 1, 1, 1);

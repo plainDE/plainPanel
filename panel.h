@@ -41,8 +41,9 @@ class panel : public QWidget
 
 public:   
     panel(QWidget *parent = nullptr);
+    void updateGeometry();
     void updateFavApps(QJsonArray* newFavorites);
-    void animation(panel* w);
+    void animation(panel* w); 
     ~panel();
 
 
