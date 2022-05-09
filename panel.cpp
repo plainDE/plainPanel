@@ -51,7 +51,6 @@ KbLayoutApplet _kbLayout;
 UserMenuApplet _userMenu;
 userMenuUI _userMenuUI;
 
-TrayApplet _tray;
 QStringList* trayEntries;
 
 qint8 visibleDesktop;
@@ -69,14 +68,14 @@ void readConfig() {
 
     if (!QFile::exists(homeDirectory + "/.config/plainDE/config.json")) {
         qDebug() << homeDirectory + "/.config/plainDE/config.json" + " does not exist. Generating new...";
-        system("python3 /usr/share/plainDE/genconfig.py");
+        system("python3 /usr/share/plainDE/tools/genconfig.py");
     }
 
     file.setFileName(homeDirectory + "/.config/plainDE/config.json");
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     data = file.readAll();
     file.close();
-    config = QJsonDocument::fromJson(data.toUtf8()).object();
+    config = QJsonDocument::fromJson(data.toUtf8()).object();   
 }
 
 void basicInit(panel* w) {
@@ -452,7 +451,7 @@ void setPanelUI(panel* w) {
 
 
 // Slots
-void panel::toggleAppMenu() {
+void panel::toggleAppMenu() {    
     if (!_menuUI.menuWidget->isVisible()) {
         _menuUI.searchBox->clear();
         menu->buildMenu(_menuUI.appListWidget, "");
