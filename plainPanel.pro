@@ -46,9 +46,6 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
 DISTFILES += \
-    devnotes.txt \
-    styles/general-light.qss \
-    styles/gnome-colors-light.qss \
     styles/gradient-dark.qss \
     styles/gradient-light.qss \
     styles/still-dark.qss \
