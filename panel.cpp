@@ -24,7 +24,6 @@
 #include "applets/usermenu/usermenu.h"
 #include "applets/volume/volume.h"
 #include "applets/windowlist/windowlist.h"
-#include "applets/sni-tray/tray.h"
 
 Display* display;
 QJsonObject config;
@@ -77,7 +76,7 @@ void readConfig() {
     file.open(QIODevice::ReadOnly | QIODevice::Text);
     data = file.readAll();
     file.close();
-    config = QJsonDocument::fromJson(data.toUtf8()).object();   
+    config = QJsonDocument::fromJson(data.toUtf8()).object();
 }
 
 void basicInit(panel* w) {
@@ -453,7 +452,7 @@ void setPanelUI(panel* w) {
 
 
 // Slots
-void panel::toggleAppMenu() {    
+void panel::toggleAppMenu() {
     if (!_menuUI.menuWidget->isVisible()) {
         _menuUI.searchBox->clear();
         menu->buildMenu(_menuUI.appListWidget, "");
