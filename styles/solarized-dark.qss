@@ -1,0 +1,39 @@
+QWidget#panel {
+    background-color: #002b36;
+}
+
+QWidget#controlCenter,
+QWidget#appMenu, QWidget#userMenu,
+QWidget#panelPane, QWidget#autostartPane,
+QWidget#appletsPane, QWidget#appearancePane,
+QWidget#datetimeAppletPane, QWidget#appMenuAppletPane,
+QWidget#about {
+    background-color: #073642;
+}
+
+QLabel {
+    color: #93a1a1;
+}
+
+QPushButton, QLineEdit, QListWidget,
+QComboBox, QSpinBox, QTextEdit, QScrollBar {
+    background-color: #073642;
+    color: #93a1a1;
+}
+
+QCheckBox, QRadioButton {
+    color: #aaaaaa;
+}
+
+QTabBar::tab {
+    color: #93a1a1;
+    background-color: #073642;
+}
+
+QDial, QTabWidget {
+    background-color: #073642;
+}
+
+QPushButton#userMenuPushButton {
+    text-align: right;
+}
