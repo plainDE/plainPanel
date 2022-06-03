@@ -1,7 +1,8 @@
 #include "usermenu.h"
 
 userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeight, QFont font,
-                                        short buttonX, short buttonXRight, QString theme) {
+                                        short buttonX, short buttonXRight, QString theme,
+                                        qreal opacity) {
     QWidget* userMenuWidget = new QWidget;
     userMenuWidget->setObjectName("userMenu");
     QFontMetrics fm(font);
@@ -36,6 +37,9 @@ userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeigh
     stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
     QTextStream styleSheet(&stylesheetReader);
     userMenuWidget->setStyleSheet(styleSheet.readAll() + "QPushButton { text-align: left; }");
+
+    // Opacity
+    userMenuWidget->setWindowOpacity(opacity);
 
     // Set font
     userMenuWidget->setFont(font);
@@ -134,7 +138,7 @@ userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeigh
         userMenuWidget->hide();
 
         QProcess* process = new QProcess(userMenuWidget);
-        process->start("plainAbout");
+        process->start("plainAbout --plainPanel");
     });
 
 

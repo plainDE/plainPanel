@@ -22,6 +22,7 @@ config = {'accent': '#376594',
 		  'menuText': 'Apps',
 		  'panelHeight': 28,
 		  'panelLocation': 'top',
+		  'panelOpacity': 0.85,
 		  'showDate': True,
 		  'theme': 'gradient-light.qss',
 		  'timeFormat': 'h:mm AP',
@@ -35,8 +36,7 @@ if os.path.exists('/home/' + userName + '/.config'):
 else:
 	os.mkdir('/home/' + userName + '/.config/')
 	os.mkdir(dirPath)
-	
+
 
 with open(dirPath + '/config.json', 'w') as configWriter:
 	json.dump(config, configWriter)
-

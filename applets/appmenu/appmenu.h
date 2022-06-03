@@ -34,7 +34,7 @@ class AppMenu : public Applet {
 public:
     menuUI __createUI__(PanelLocation location, short panelHeight, QFont font,
                         short buttonX, short buttonXRight, bool triangularTabs,
-                        QString accent, QString theme);
+                        QString accent, QString theme, qreal opacity);
     void makeItem(QString name, QIcon icon, QListWidgetItem* item);
     App readDesktopFile(QString pathToCurrentDesktopFile);
     void buildMenu(QListWidget* appList, QString searchRequest);

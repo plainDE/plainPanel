@@ -23,7 +23,8 @@ public:
                             QFont font,
                             short buttonX,
                             short buttonXRight,
-                            QString theme);
+                            QString theme,
+                            qreal opacity);
     void about();
     void settings();
 };

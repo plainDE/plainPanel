@@ -9,7 +9,7 @@ QVariantList __favDesktopFiles__;
 
 menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont font,
                              short buttonX, short buttonXRight, bool triangularTabs,
-                             QString accent, QString theme) {
+                             QString accent, QString theme, qreal opacity) {
     QWidget* appMenuWidget = new QWidget;
     appMenuWidget->setObjectName("appMenu");
     appMenuWidget->setWindowTitle("plainPanel App Menu");
@@ -44,6 +44,9 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
     QTextStream styleSheet(&stylesheetReader);
     appMenuWidget->setStyleSheet(styleSheet.readAll());
+
+    // Opacity
+    appMenuWidget->setWindowOpacity(opacity);
 
     // UI: Menu
     appMenuWidget->setFont(font);

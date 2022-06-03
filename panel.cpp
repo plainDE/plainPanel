@@ -180,6 +180,9 @@ void setPanelUI(panel* w) {
     // Set accent
     accent = config["accent"].toString();
 
+    // Set opacity
+    w->setWindowOpacity(config["panelOpacity"].toDouble());
+
     // Icons
     QIcon::setThemeName(config["iconTheme"].toString());
 
@@ -318,7 +321,8 @@ void setPanelUI(panel* w) {
                                         panelFont, appletWidgets["appMenuPushButton"]->x(),
                                         appletWidgets["appMenuPushButton"]->geometry().topRight().x(),
                                         config["appMenuTriangularTabs"].toBool(), accent,
-                                        config["theme"].toString());
+                                        config["theme"].toString(),
+                                        config["panelOpacity"].toDouble());
             w->connect(static_cast<QPushButton*>(appletWidgets["appMenuPushButton"]), &QPushButton::clicked, w, &panel::toggleAppMenu);
         }
 
@@ -372,7 +376,8 @@ void setPanelUI(panel* w) {
                                           panelFont,
                                           appletWidgets["userMenuPushButton"]->pos().x(),
                                           appletWidgets["userMenuPushButton"]->geometry().topRight().x(),
-                                          config["theme"].toString());
+                                          config["theme"].toString(),
+                                          config["panelOpacity"].toDouble());
 
             w->connect(static_cast<QPushButton*>(appletWidgets["userMenuPushButton"]),
                        &QPushButton::clicked,
