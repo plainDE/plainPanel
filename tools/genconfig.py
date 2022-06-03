@@ -30,7 +30,12 @@ config = {'accent': '#376594',
 
 userName = os.getenv('USER')
 dirPath = '/home/' + userName + '/.config/plainDE'
-os.mkdir(dirPath)
+if os.path.exists('/home/' + userName + '/.config'):
+	os.mkdir(dirPath)
+else:
+	os.mkdir('/home/' + userName + '/.config/')
+	os.mkdir(dirPath)
+	
 
 with open(dirPath + '/config.json', 'w') as configWriter:
 	json.dump(config, configWriter)
