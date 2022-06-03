@@ -35,7 +35,7 @@
     5. <code>sudo cp readme-icon.png /usr/share/plainDE/menuIcon.png</code>
   </div><br>
   
-  Now add <code>plainPanel</code> to OpenBox/FluxBox/... autostart and enjoy!
+  Now add <code>plainPanel</code> (+ xcompmgr, if opacity is needed) to OpenBox/FluxBox/... autostart and enjoy!
   
   <h2>Customizing</h2>
   You can either edit ~/.config/plainDE/config.json manually or use <a href="https://github.com/plainDE/plainControlCenter">plainControlCenter</a>.
