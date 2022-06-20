@@ -69,6 +69,9 @@ void readConfig() {
         qDebug() << homeDirectory + "/.config/plainDE/config.json" + " does not exist. Generating new...";
         system("python3 /usr/share/plainDE/tools/genconfig.py");
     }
+    else {
+        system("python3 /usr/share/plainDE/tools/update-config.py");
+    }
 
     file.setFileName(homeDirectory + "/.config/plainDE/config.json");
     file.open(QIODevice::ReadOnly | QIODevice::Text);
