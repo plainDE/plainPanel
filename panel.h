@@ -22,6 +22,7 @@
 #undef FontChange
 #undef None
 #undef Unsorted
+#undef Bool
 
 
 QT_BEGIN_NAMESPACE
@@ -34,8 +35,7 @@ enum PanelLocation {
     bottom
 };
 
-class panel : public QWidget
-{
+class panel : public QWidget {
     Q_OBJECT
 
 
@@ -53,8 +53,19 @@ public slots:
     void toggleUserMenu();
     void filterAppsList();
     void setVolume();
-    void updateWindowList();
-    void updateWorkspaces();
-    void updateAppletsData();
+    //void updateWindowList();
+    //void updateWorkspaces();
+    //void updateAppletsData();
+
+
+    // updating applets data
+    void updateDateTime(bool);  // Date & Time applet (Time + Date)
+    void updateDateTime();      // Date & Time applet (Time only)
+    void updateKbLayout();      // Keyboard layout applet (ISO code)
+    void updateKbLayout(bool);  // Keyboard layout applet (flag)
+    void updateWinList();       // Window List applet
+    void updateWorkspaces();    // Workspaces applet
+
+    void freeUnusedMemory(bool quit);
 };
 #endif // PANEL_H

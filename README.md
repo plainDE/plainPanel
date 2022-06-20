@@ -13,16 +13,16 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/extensions.png"> Spacer<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/workspace-switcher-top-left.png"> Worskpaces<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/preferences-system-sound.png"> Volume<br>
-  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/keyboard.png"> Keyboard Layout (X11 only)<br>
+  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/keyboard.png"> Keyboard Layout<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/calendar.png"> Date & Time<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/extensions.png"> Splitter<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/preferences-desktop-user.png"> User menu<br>
   
   <h2>Screenshots</h2>
-  <img src="scr-0.1.4.png" width=640 height=480>
+  <img src="scr0.2.png" width=640 height=480>
   
   <h2>Dependencies</h2>
-  <code>qt6-base</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>, <code>python3</code>, <code>xcompmgr</code>
+  <code>qt6-base</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>
   
   <h2>Installation</h2>
   You can either use <a href="https://github.com/plainDE/plainInstaller">plainInstaller</a>, a script that will download, compile and install everything automatically, or install plainPanel only.<br><br>
@@ -35,7 +35,7 @@
     5. <code>sudo cp readme-icon.png /usr/share/plainDE/menuIcon.png</code>
   </div><br>
   
-  Now add <code>plainPanel</code> (+ xcompmgr, if opacity is needed) to OpenBox/FluxBox/... autostart and enjoy!
+  Now add <code>plainPanel</code> to OpenBox/FluxBox/... autostart and enjoy!
   
   <h2>Customizing</h2>
   You can either edit ~/.config/plainDE/config.json manually or use <a href="https://github.com/plainDE/plainControlCenter">plainControlCenter</a>.

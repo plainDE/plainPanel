@@ -93,6 +93,29 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     favAppsTab->layout()->addWidget(favAppsList);
     menuTabWidget->addTab(favAppsTab, "Favorites");
 
+
+    // UI: Run
+    QWidget* runTab = new QWidget;
+    runTab->setFont(font);
+
+    QVBoxLayout* runLayout = new QVBoxLayout;
+    runLayout->setContentsMargins(4, 4, 4, 4);
+    runTab->setLayout(runLayout);
+
+    QLabel* runLabel = new QLabel("Enter command:");
+    runLayout->addWidget(runLabel);
+
+    QLineEdit* cmdLineEdit = new QLineEdit;
+    runLayout->addWidget(cmdLineEdit);
+
+    QPushButton* runPushButton = new QPushButton("Run");
+    runLayout->addWidget(runPushButton);
+
+    runLayout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Ignored, QSizePolicy::Expanding));
+
+    menuTabWidget->addTab(runTab, "Run");
+
+
     // Make connections
     allAppsTab->connect(menuSearchBox, &QLineEdit::textEdited, allAppsTab,
                            [menuAppsList, menuSearchBox, this]() {
@@ -107,6 +130,12 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     favAppsTab->connect(favAppsList, &QListWidget::itemDoubleClicked, favAppsTab,
                         [favAppsList, appMenuWidget, this]() {
         execApp(favExecData[favAppsList->selectedItems()[0]], appMenuWidget);
+    });
+
+    runTab->connect(runPushButton, &QPushButton::clicked, runTab,
+                    [cmdLineEdit, appMenuWidget, this]() {
+        execApp(cmdLineEdit->text(), appMenuWidget);
+        cmdLineEdit->clear();
     });
 
     return {appMenuWidget, menuSearchBox, menuAppsList, favAppsList, menuTabWidget};

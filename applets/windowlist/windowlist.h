@@ -7,10 +7,8 @@
 #define WINDOWLIST_H
 
 
-class WindowList
-{
-public:
-    QList<WId> getWinList();
+namespace WindowList {
+    void getWinList(QList<WId>* winIDs);
 };
 
 #endif // WINDOWLIST_H

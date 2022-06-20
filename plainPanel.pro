@@ -44,9 +44,3 @@ CONFIG += embed_translations
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
-
-DISTFILES += \
-    styles/gradient-dark.qss \
-    styles/gradient-light.qss \
-    styles/still-dark.qss \
-    styles/still-light.qss

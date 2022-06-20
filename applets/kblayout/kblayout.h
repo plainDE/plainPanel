@@ -13,6 +13,7 @@ class KbLayoutApplet
 public:
     void __init__();
     QString getCurrentKbLayout();
+    QString getCurrentFlag();
 };
 
 #endif // KBLAYOUT_H

@@ -1,6 +1,5 @@
 #include "windowlist.h"
 
-QList<WId> WindowList::getWinList() {
-    QList<WId> windows = KWindowSystem::windows();
-    return windows;
+void WindowList::getWinList(QList<WId>* winIDs) {
+    *winIDs = KWindowSystem::windows();
 }
