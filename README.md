@@ -13,7 +13,7 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/extensions.png"> Spacer<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/workspace-switcher-top-left.png"> Worskpaces<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/preferences-system-sound.png"> Volume<br>
-  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/keyboard.png"> Keyboard Layout<br>
+  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/keyboard.png"> Keyboard Layout (X11 only)<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/calendar.png"> Date & Time<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/extensions.png"> Splitter<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/preferences-desktop-user.png"> User menu<br>
