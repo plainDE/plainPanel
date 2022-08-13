@@ -1,4 +1,4 @@
-QT       += core gui KWindowSystem
+QT       += core gui network KWindowSystem
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets dbus
 
@@ -19,6 +19,7 @@ SOURCES += \
     applets/appmenu/appmenu.cpp \
     applets/datetime/datetime.cpp \
     applets/kblayout/kblayout.cpp \
+    applets/localipv4/localipv4.cpp \
     applets/usermenu/usermenu.cpp \
     applets/volume/volume.cpp \
     applets/windowlist/windowlist.cpp \
@@ -31,6 +32,7 @@ HEADERS += \
     applets/appmenu/appmenu.h \
     applets/datetime/datetime.h \
     applets/kblayout/kblayout.h \
+    applets/localipv4/localipv4.h \
     applets/usermenu/usermenu.h \
     applets/volume/volume.h \
     applets/windowlist/windowlist.h \

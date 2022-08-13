@@ -21,6 +21,7 @@
 #include "applets/usermenu/usermenu.h"
 #include "applets/volume/volume.h"
 #include "applets/windowlist/windowlist.h"
+#include "applets/localipv4/localipv4.h"
 
 QJsonObject config;
 QMap<QString,QWidget*> appletWidgets;
@@ -39,7 +40,6 @@ menuUI _menuUI;
 
 QHBoxLayout* windowListLayout = new QHBoxLayout;
 QList<WId>* winIDs = new QList<WId>;
-QList<WId>* newWinIDs = new QList<WId>;
 QHash<WId,QPushButton*> winWidgets;
 unsigned short minWidth;
 
@@ -51,6 +51,8 @@ KbLayoutApplet _kbLayout;
 
 UserMenuApplet _userMenu;
 userMenuUI _userMenuUI;
+
+LocalIPv4Applet ipv4Applet;
 
 qint8 visibleDesktop;
 qint8 countWorkspaces;
@@ -88,7 +90,7 @@ void readConfig() {
 void basicInit(panel* w) {
     if (QString::compare(getenv("XDG_SESSION_TYPE"), "x11", Qt::CaseInsensitive) != 0) {
         qDebug() << "plainPanel currently works on X11 only. Quitting...";
-        QCoreApplication::quit();
+        exit(0);
     }
 
     w->setWindowTitle("plainPanel");
@@ -180,58 +182,55 @@ void panel::updateKbLayout() {
 
 void panel::updateKbLayout(bool) {
     static_cast<QPushButton*>(appletWidgets["layoutName"])->setIcon(
-                QIcon(_kbLayout.getCurrentFlag()));
+                _kbLayout.getCurrentFlag());
 }
 
 void panel::updateWinList() {
-    WindowList::getWinList(newWinIDs);
-    if (*winIDs != *newWinIDs) {
-        *winIDs = *newWinIDs;
-        for (auto it = winIDs->cbegin(), end = winIDs->cend(); it != end; ++it) {
-            KWindowInfo pIDInfo(*it, NET::WMPid);
-            if (pIDInfo.pid() != panelPID) {
-                KWindowInfo desktopInfo(*it, NET::WMDesktop);
-                if (!winWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
-                    KWindowInfo nameInfo(*it, NET::WMName);
-                    QPixmap icon = KWindowSystem::icon(*it, -1, config["panelHeight"].toInt(), true);
-                    QString winName = nameInfo.name();
-                    unsigned short sz = winName.length();
-                    winName.truncate(15);
-                    if (winName.length() < sz) {
-                        winName += "...";
-                    }
-                    QPushButton* windowButton = new QPushButton(winName);
-                    windowButton->setIcon(icon);
-                    winWidgets[*it] = windowButton;
-                    windowListLayout->addWidget(windowButton);
-
-                    this->connect(windowButton, &QPushButton::clicked, this, [windowButton]() {
-                        KWindowInfo windowInfo(winWidgets.key(windowButton), NET::WMState | NET::XAWMState);
-                        if (windowInfo.mappingState() != NET::Visible || windowInfo.isMinimized()) {
-                            KWindowSystem::unminimizeWindow(winWidgets.key(windowButton));
-                        }
-                        else {
-                            KWindowSystem::minimizeWindow(winWidgets.key(windowButton));
-                        }
-                    });
+    WindowList::getWinList(winIDs);
+    for (auto it = winIDs->cbegin(), end = winIDs->cend(); it != end; ++it) {
+        KWindowInfo pIDInfo(*it, NET::WMPid);
+        if (pIDInfo.pid() != panelPID) {
+            KWindowInfo desktopInfo(*it, NET::WMDesktop);
+            if (!winWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
+                KWindowInfo nameInfo(*it, NET::WMName);
+                QPixmap icon = KWindowSystem::icon(*it, -1, config["panelHeight"].toInt(), true);
+                QString winName = nameInfo.name();
+                unsigned short sz = winName.length();
+                winName.truncate(15);
+                if (winName.length() < sz) {
+                    winName += "...";
                 }
-                else {
-                    if (desktopInfo.isOnCurrentDesktop()) {
-                        KWindowInfo nameInfo(*it, NET::WMName);
-                        QString newName = nameInfo.name();;
-                        unsigned short sz = newName.length();
-                        newName.truncate(15);
-                        if (newName.length() < sz) {
-                            newName += "...";
-                        }
-                        if (winWidgets[*it]->text() != newName) {
-                            winWidgets[*it]->setText(newName);
-                        }
+                QPushButton* windowButton = new QPushButton(winName);
+                windowButton->setIcon(icon);
+                winWidgets[*it] = windowButton;
+                windowListLayout->addWidget(windowButton);
+
+                this->connect(windowButton, &QPushButton::clicked, this, [windowButton]() {
+                    KWindowInfo windowInfo(winWidgets.key(windowButton), NET::WMState | NET::XAWMState);
+                    if (windowInfo.mappingState() != NET::Visible || windowInfo.isMinimized()) {
+                        KWindowSystem::unminimizeWindow(winWidgets.key(windowButton));
                     }
                     else {
-                        delete winWidgets[*it];
-                        winWidgets.remove(*it);
+                        KWindowSystem::minimizeWindow(winWidgets.key(windowButton));
                     }
+                });
+            }
+            else {
+                if (desktopInfo.isOnCurrentDesktop()) {
+                    KWindowInfo nameInfo(*it, NET::WMName);
+                    QString newName = nameInfo.name();;
+                    unsigned short sz = newName.length();
+                    newName.truncate(15);
+                    if (newName.length() < sz) {
+                        newName += "...";
+                    }
+                    if (winWidgets[*it]->text() != newName) {
+                        winWidgets[*it]->setText(newName);
+                    }
+                }
+                else {
+                    delete winWidgets[*it];
+                    winWidgets.remove(*it);
                 }
             }
         }
@@ -253,6 +252,12 @@ void panel::updateWorkspaces() {
             }
         }
     }
+}
+
+void panel::updateLocalIPv4() {
+    static_cast<QLabel*>(appletWidgets["ipLabel"])->setText(
+        ipv4Applet.getLocalIP(config["ipIfname"].toString())
+    );
 }
 
 void setRepeatingActions(panel* w) {
@@ -333,11 +338,21 @@ void setRepeatingActions(panel* w) {
         QTimer* updateWorkspacesTimer = new QTimer(w);
         updateWorkspacesTimer->setInterval(400);
 
-
         w->connect(updateWorkspacesTimer, &QTimer::timeout, w, [w]() {
            w->updateWorkspaces();
         });
         updateWorkspacesTimer->start();
+    }
+
+    // Local IP applet
+    if (activeAppletsList.contains("localipv4")) {
+        QTimer* updateLocalIPTimer = new QTimer(w);
+        updateLocalIPTimer->setInterval(15000);
+
+        w->connect(updateLocalIPTimer, &QTimer::timeout, w, [w]() {
+            w->updateLocalIPv4();
+        });
+        updateLocalIPTimer->start();
     }
 }
 
@@ -484,6 +499,12 @@ void setPanelUI(panel* w) {
             }
         }
 
+        else if (applet == "localipv4") {
+            QLabel* ipLabel = new QLabel("0.0.0.0");
+            w->layout()->addWidget(ipLabel);
+            appletWidgets["ipLabel"] = ipLabel;
+        }
+
         else {
             qDebug() << "Unknown applet:" << applet;
         }
@@ -521,7 +542,7 @@ void setPanelUI(panel* w) {
         }
 
         else if (applet == "kblayout") {
-            _kbLayout.__init__();
+            _kbLayout.__init__(config["kbLayouts"].toString().split(','));
             if (config["useCountryFlag"].toBool()) {
                 static_cast<QPushButton*>(appletWidgets["layoutName"])->setIcon(
                             QIcon(_kbLayout.getCurrentFlag()));
@@ -555,10 +576,10 @@ void setPanelUI(panel* w) {
 
         else if (applet == "windowlist") {
             w->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, w, []() {
-                WindowList::getWinList(newWinIDs);
+                WindowList::getWinList(winIDs);
                 QList<WId> keys = winWidgets.keys();
                 foreach (WId id, keys) {
-                    if (!newWinIDs->contains(id)) {
+                    if (!winIDs->contains(id)) {
                         delete winWidgets[id];
                         winWidgets.remove(id);
                     }
@@ -575,6 +596,10 @@ void setPanelUI(panel* w) {
                     KWindowSystem::setCurrentDesktop(workspace+1);
                 });
             }
+        }
+
+        else if (applet == "localipv4") {
+            w->updateLocalIPv4();
         }
 
         else {
@@ -735,7 +760,6 @@ void panel::freeUnusedMemory(bool quit) {
         if (!activeAppletsList.contains("windowlist")) {
             delete windowListLayout;
             delete winIDs;
-            delete newWinIDs;
         }
     }
     else {

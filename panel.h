@@ -65,6 +65,7 @@ public slots:
     void updateKbLayout(bool);  // Keyboard layout applet (flag)
     void updateWinList();       // Window List applet
     void updateWorkspaces();    // Workspaces applet
+    void updateLocalIPv4();       // Local IP applet
 
     void freeUnusedMemory(bool quit);
 };

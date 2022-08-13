@@ -11,9 +11,10 @@ XkbStateRec state;
 int displayResult;
 QString layout;
 QJsonObject layoutCodes;
+QHash<QString,QIcon> flagByCode;
 
 
-void KbLayoutApplet::__init__() {
+void KbLayoutApplet::__init__(QStringList activeLayouts) {
     // Connect to X Server
     kbDisplay = XkbOpenDisplay(getenv("DISPLAY"), NULL, NULL, NULL, NULL, &displayResult);
     keyboard = XkbAllocKeyboard();
@@ -27,6 +28,10 @@ void KbLayoutApplet::__init__() {
     file.close();
 
     layoutCodes = QJsonDocument::fromJson(data.toUtf8()).object();
+
+    foreach (QString layout, activeLayouts) {
+        flagByCode[layout] = QIcon("/usr/share/flags/" + layout + ".png");
+    }
 }
 
 QString KbLayoutApplet::getCurrentKbLayout() {
@@ -38,6 +43,6 @@ QString KbLayoutApplet::getCurrentKbLayout() {
     return layoutCodes[layout].toString();
 }
 
-QString KbLayoutApplet::getCurrentFlag() {
-    return "/usr/share/flags/" + KbLayoutApplet::getCurrentKbLayout() + ".png";
+QIcon KbLayoutApplet::getCurrentFlag() {
+    return flagByCode[KbLayoutApplet::getCurrentKbLayout()];
 }

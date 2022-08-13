@@ -17,9 +17,10 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/calendar.png"> Date & Time<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/extensions.png"> Splitter<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/preferences-desktop-user.png"> User menu<br>
+  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/extensions.png"> Local IPv4 Indicator<br>
   
   <h2>Screenshots</h2>
-  <img src="scr0.2.png" width=640 height=480>
+  <img src="scr0.2.1.png" width=640 height=480>
   
   <h2>Dependencies</h2>
   <code>qt6-base</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>
@@ -54,6 +55,5 @@
   
   <h2>Miscellaneous</h2>
   <b>Note</b>. Mint-Y is recommended icon theme (we use few Mint-Y-only icons).<br>
-  <b>Note</b>. Use setxkbmap to change your keyboard layout.
   
 </div>

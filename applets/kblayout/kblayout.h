@@ -8,12 +8,11 @@
 #define KBLAYOUT_H
 
 
-class KbLayoutApplet
-{
+class KbLayoutApplet {
 public:
-    void __init__();
+    void __init__(QStringList activeLayouts);
     QString getCurrentKbLayout();
-    QString getCurrentFlag();
+    QIcon getCurrentFlag();
 };
 
 #endif // KBLAYOUT_H
