@@ -18,6 +18,7 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/extensions.png"> Splitter<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/preferences-desktop-user.png"> User menu<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/extensions.png"> Local IPv4 Indicator<br>
+  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/preferences-system-sound.png"> MPRIS<br>
   
   <h2>Screenshots</h2>
   <img src="scr-0.2.1.png" width=640 height=480>
