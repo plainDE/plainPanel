@@ -55,6 +55,7 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     appMenuWidget->setLayout(mainLayout);
 
     QTabWidget* menuTabWidget = new QTabWidget;
+    menuTabWidget->setFont(font);
     if (triangularTabs) {
         menuTabWidget->setTabShape(QTabWidget::Triangular);
     }
@@ -76,6 +77,7 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     QListWidget* menuAppsList = new QListWidget;
     allAppsTab->layout()->addWidget(menuAppsList);
     menuAppsList->setStyleSheet("QListView::item:selected { background-color: " + accent + "; color: #ffffff };");
+    menuAppsList->setFont(font);
 
     menuTabWidget->addTab(allAppsTab, "All applications");
 
@@ -91,6 +93,7 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     QListWidget* favAppsList = new QListWidget;
     favAppsList->setStyleSheet("QListView::item:selected { background-color: " + accent + "; color: #ffffff };");
     favAppsTab->layout()->addWidget(favAppsList);
+    favAppsList->setFont(font);
     menuTabWidget->addTab(favAppsTab, "Favorites");
 
 

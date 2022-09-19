@@ -3,6 +3,8 @@
 
 #include <QWidget>
 
+#include <QDBusAbstractAdaptor>
+
 /* including QListWidget and QListWidgetItem here due to
  *  bug caused by including them in appmenu.h */
 #include <QListWidget>
@@ -41,16 +43,26 @@ class panel : public QWidget {
 
 public:   
     panel(QWidget *parent = nullptr);
+    void basicInit();
     void updateGeometry();
-    void updateFavApps(QJsonArray* newFavorites);
-    void animation(panel* w); 
+    void setRepeatingActions();
+    void readConfig();
+    void setPanelGeometry();
+    void setPanelUI();
+    void testpoint();
+    void animation();
+    void autostart();
+    void freeUnusedMemory(bool quit);
     ~panel();
 
-
 public slots:
+    void reconfigurePanel();
+
+private slots:
     void toggleAppMenu();
     void toggleCalendar();
     void toggleUserMenu();
+    void toggleMPRIS();
     void filterAppsList();
     void setVolume();
     //void updateWindowList();
@@ -66,7 +78,5 @@ public slots:
     void updateWinList();       // Window List applet
     void updateWorkspaces();    // Workspaces applet
     void updateLocalIPv4();       // Local IP applet
-
-    void freeUnusedMemory(bool quit);
 };
 #endif // PANEL_H

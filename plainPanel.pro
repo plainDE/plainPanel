@@ -20,10 +20,12 @@ SOURCES += \
     applets/datetime/datetime.cpp \
     applets/kblayout/kblayout.cpp \
     applets/localipv4/localipv4.cpp \
+    applets/mpris/mpris.cpp \
     applets/usermenu/usermenu.cpp \
     applets/volume/volume.cpp \
     applets/windowlist/windowlist.cpp \
     applets/workspaces/workspaces.cpp \
+    dbusintegration.cpp \
     main.cpp \
     panel.cpp
 
@@ -33,10 +35,12 @@ HEADERS += \
     applets/datetime/datetime.h \
     applets/kblayout/kblayout.h \
     applets/localipv4/localipv4.h \
+    applets/mpris/mpris.h \
     applets/usermenu/usermenu.h \
     applets/volume/volume.h \
     applets/windowlist/windowlist.h \
     applets/workspaces/workspaces.h \
+    dbusintegration.h \
     panel.h
 
 CONFIG += lrelease
@@ -46,3 +50,6 @@ CONFIG += embed_translations
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+
+FORMS +=

@@ -15,8 +15,7 @@ struct userMenuUI {
     QPushButton* rebootEntry;
 };
 
-class UserMenuApplet
-{
+class UserMenuApplet {
 public:
     userMenuUI __createUI__(PanelLocation location,
                             short panelHeight,

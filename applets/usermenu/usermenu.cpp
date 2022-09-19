@@ -1,5 +1,7 @@
 #include "usermenu.h"
 
+#include <QDebug>
+
 userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeight, QFont font,
                                         short buttonX, short buttonXRight, QString theme,
                                         qreal opacity) {
@@ -53,31 +55,44 @@ userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeigh
     settingsEntry->setFlat(true);
     settingsEntry->setText("Settings");
     settingsEntry->setIcon(QIcon::fromTheme("preferences-system"));
+    settingsEntry->setFont(font);
     userMenuWidget->layout()->addWidget(settingsEntry);
 
     QPushButton* aboutEntry = new QPushButton;
     aboutEntry->setFlat(true);
     aboutEntry->setText("About plainDE");
     aboutEntry->setIcon(QIcon::fromTheme("help-about"));
+    aboutEntry->setFont(font);
     userMenuWidget->layout()->addWidget(aboutEntry);
 
     QPushButton* logOutEntry = new QPushButton;
     logOutEntry->setFlat(true);
     logOutEntry->setText("Log Out");
     logOutEntry->setIcon(QIcon::fromTheme("system-log-out"));
+    logOutEntry->setFont(font);
     userMenuWidget->layout()->addWidget(logOutEntry);
 
-    QPushButton* powerOffEntry = new QPushButton;
-    powerOffEntry->setFlat(true);
-    powerOffEntry->setText("Power Off");
-    powerOffEntry->setIcon(QIcon::fromTheme("system-shutdown"));
-    userMenuWidget->layout()->addWidget(powerOffEntry);
+    QPushButton* suspendEntry = new QPushButton;
+    suspendEntry->setFlat(true);
+    suspendEntry->setText("Suspend");
+    suspendEntry->setIcon(QIcon::fromTheme("system-suspend"));
+    suspendEntry->setFont(font);
+    userMenuWidget->layout()->addWidget(suspendEntry);
 
     QPushButton* rebootEntry = new QPushButton;
     rebootEntry->setFlat(true);
     rebootEntry->setText("Reboot");
     rebootEntry->setIcon(QIcon::fromTheme("system-reboot"));
+    rebootEntry->setFont(font);
     userMenuWidget->layout()->addWidget(rebootEntry);
+
+    QPushButton* powerOffEntry = new QPushButton;
+    powerOffEntry->setFlat(true);
+    powerOffEntry->setText("Power Off");
+    powerOffEntry->setIcon(QIcon::fromTheme("system-shutdown"));
+    powerOffEntry->setFont(font);
+    userMenuWidget->layout()->addWidget(powerOffEntry);
+
 
     // Make connections
     userMenuWidget->connect(powerOffEntry, &QPushButton::clicked, userMenuWidget,
@@ -123,6 +138,12 @@ userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeigh
         if (powerOffMsg.exec() == QMessageBox::Yes) {
             system("loginctl kill-user $USER");
         }
+    });
+
+    userMenuWidget->connect(suspendEntry, &QPushButton::clicked, userMenuWidget,
+                            [userMenuWidget]() {
+        userMenuWidget->hide();
+        system("systemctl suspend");
     });
 
     userMenuWidget->connect(settingsEntry, &QPushButton::clicked, userMenuWidget,
