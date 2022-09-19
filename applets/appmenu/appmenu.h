@@ -32,14 +32,14 @@ struct App {
 
 class AppMenu : public Applet {
 public:
-    menuUI __createUI__(PanelLocation location, short panelHeight, QFont font,
+    menuUI __createUI__(QWidget* parent, PanelLocation location, short panelHeight, QFont font,
                         short buttonX, short buttonXRight, bool triangularTabs,
                         QString accent, QString theme, qreal opacity);
     void makeItem(QString name, QIcon icon, QListWidgetItem* item);
     App readDesktopFile(QString pathToCurrentDesktopFile);
     void buildMenu(QListWidget* appList, QString searchRequest);
     void searchApps(QListWidget* menuAppsList, QString mask);
-    void execApp(QString exec, QWidget* appMenuWidget);
+    void execApp(QWidget* parent, QString exec, QWidget* appMenuWidget);
 
     void buildFavMenu(QListWidget* favListWidget, QVariantList favDesktopFiles);
 };

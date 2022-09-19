@@ -7,9 +7,10 @@ QHash<QListWidgetItem*,QString> execData;
 QHash<QListWidgetItem*,QString> favExecData;
 QVariantList __favDesktopFiles__;
 
-menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont font,
-                             short buttonX, short buttonXRight, bool triangularTabs,
-                             QString accent, QString theme, qreal opacity) {
+menuUI AppMenu::__createUI__(QWidget* parent,  PanelLocation location, short panelHeight,
+                             QFont font, short buttonX, short buttonXRight,
+                             bool triangularTabs, QString accent, QString theme,
+                             qreal opacity) {
     QWidget* appMenuWidget = new QWidget;
     appMenuWidget->setObjectName("appMenu");
     appMenuWidget->setWindowTitle("plainPanel App Menu");
@@ -126,18 +127,18 @@ menuUI AppMenu::__createUI__(PanelLocation location, short panelHeight, QFont fo
     });
 
     allAppsTab->connect(menuAppsList, &QListWidget::itemDoubleClicked, allAppsTab,
-                           [menuAppsList, appMenuWidget, this]() {
-        execApp(execData[menuAppsList->selectedItems()[0]], appMenuWidget);
+                           [parent, menuAppsList, appMenuWidget, this]() {
+        execApp(parent, execData[menuAppsList->selectedItems()[0]], appMenuWidget);
     });
 
     favAppsTab->connect(favAppsList, &QListWidget::itemDoubleClicked, favAppsTab,
-                        [favAppsList, appMenuWidget, this]() {
-        execApp(favExecData[favAppsList->selectedItems()[0]], appMenuWidget);
+                        [parent, favAppsList, appMenuWidget, this]() {
+        execApp(parent, favExecData[favAppsList->selectedItems()[0]], appMenuWidget);
     });
 
     runTab->connect(runPushButton, &QPushButton::clicked, runTab,
-                    [cmdLineEdit, appMenuWidget, this]() {
-        execApp(cmdLineEdit->text(), appMenuWidget);
+                    [parent, cmdLineEdit, appMenuWidget, this]() {
+        execApp(parent, cmdLineEdit->text(), appMenuWidget);
         cmdLineEdit->clear();
     });
 
@@ -178,8 +179,8 @@ App AppMenu::readDesktopFile(QString pathToCurrentDesktopFile) {
 }
 
 
-void AppMenu::execApp(QString exec, QWidget* appMenuWidget) {
-    QProcess* process = new QProcess(appMenuWidget);
+void AppMenu::execApp(QWidget* parent, QString exec, QWidget* appMenuWidget) {
+    QProcess* process = new QProcess(parent);
 
     /* https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html
      * 'The Exec key' */

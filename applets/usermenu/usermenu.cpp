@@ -2,8 +2,8 @@
 
 #include <QDebug>
 
-userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeight, QFont font,
-                                        short buttonX, short buttonXRight, QString theme,
+userMenuUI UserMenuApplet::__createUI__(QWidget* parent, PanelLocation location, short panelHeight,
+                                        QFont font, short buttonX, short buttonXRight, QString theme,
                                         qreal opacity) {
     QWidget* userMenuWidget = new QWidget;
     userMenuWidget->setObjectName("userMenu");
@@ -147,18 +147,18 @@ userMenuUI UserMenuApplet::__createUI__(PanelLocation location, short panelHeigh
     });
 
     userMenuWidget->connect(settingsEntry, &QPushButton::clicked, userMenuWidget,
-                            [userMenuWidget]() {
+                            [parent, userMenuWidget]() {
         userMenuWidget->hide();
 
-        QProcess* process = new QProcess(userMenuWidget);
+        QProcess* process = new QProcess(parent);
         process->start("plainControlCenter");
     });
 
     userMenuWidget->connect(aboutEntry, &QPushButton::clicked, userMenuWidget,
-                            [userMenuWidget]() {
+                            [parent, userMenuWidget]() {
         userMenuWidget->hide();
 
-        QProcess* process = new QProcess(userMenuWidget);
+        QProcess* process = new QProcess(parent);
         process->start("plainAbout --plainPanel");
     });
 

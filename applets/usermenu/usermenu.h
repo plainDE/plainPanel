@@ -17,7 +17,8 @@ struct userMenuUI {
 
 class UserMenuApplet {
 public:
-    userMenuUI __createUI__(PanelLocation location,
+    userMenuUI __createUI__(QWidget* parent,
+                            PanelLocation location,
                             short panelHeight,
                             QFont font,
                             short buttonX,
