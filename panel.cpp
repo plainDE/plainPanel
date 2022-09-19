@@ -570,13 +570,14 @@ void panel::setPanelUI() {
     // Applets: set actions
     foreach (QVariant applet, activeAppletsList) {
         if (applet == "appmenu") {
-            _menuUI = menu->__createUI__(location, config["panelHeight"].toInt(),
-                                        panelFont,
-                                        appletWidgets["appMenuPushButton"]->x(),
-                                        appletWidgets["appMenuPushButton"]->geometry().topRight().x(),
-                                        config["appMenuTriangularTabs"].toBool(), accent,
-                                        config["theme"].toString(),
-                                        config["panelOpacity"].toDouble());
+            _menuUI = menu->__createUI__(this,
+                                         location, config["panelHeight"].toInt(),
+                                         panelFont,
+                                         appletWidgets["appMenuPushButton"]->x(),
+                                         appletWidgets["appMenuPushButton"]->geometry().topRight().x(),
+                                         config["appMenuTriangularTabs"].toBool(), accent,
+                                         config["theme"].toString(),
+                                         config["panelOpacity"].toDouble());
             this->connect(static_cast<QPushButton*>(appletWidgets["appMenuPushButton"]),
                           &QPushButton::clicked,
                           this,
@@ -613,13 +614,14 @@ void panel::setPanelUI() {
         }
 
         else if (applet == "usermenu") {
-            _userMenuUI = _userMenu.__createUI__(location,
-                                          config["panelHeight"].toInt(),
-                                          panelFont,
-                                          appletWidgets["userMenuPushButton"]->pos().x(),
-                                          appletWidgets["userMenuPushButton"]->geometry().topRight().x(),
-                                          config["theme"].toString(),
-                                          config["panelOpacity"].toDouble());
+            _userMenuUI = _userMenu.__createUI__(this,
+                                                 location,
+                                                 config["panelHeight"].toInt(),
+                                                 panelFont,
+                                                 appletWidgets["userMenuPushButton"]->pos().x(),
+                                                 appletWidgets["userMenuPushButton"]->geometry().topRight().x(),
+                                                 config["theme"].toString(),
+                                                 config["panelOpacity"].toDouble());
 
             this->connect(static_cast<QPushButton*>(appletWidgets["userMenuPushButton"]),
                           &QPushButton::clicked,
