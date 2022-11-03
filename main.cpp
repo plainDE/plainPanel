@@ -1,15 +1,21 @@
-#include "panel.h"
+#include "initializer.h"
 
 #include <QApplication>
-#include <QLocale>
-#include <QTranslator>
+#include <QFile>
+#include <QJsonDocument>
+#include <QJsonObject>
+
+QJsonObject config;
 
 int main(int argc, char *argv[]) {
     QApplication a(argc, argv);
 
-    panel w;
-    w.show();
+    if (QString::compare(getenv("XDG_SESSION_TYPE"), "x11", Qt::CaseInsensitive) != 0) {
+        qDebug() << "plainPanel currently works on X11 only. Quitting...";
+        exit(0);
+    }
+
+    Initializer* init = new Initializer();
 
     a.exec();
-    w.freeUnusedMemory(true);
 }

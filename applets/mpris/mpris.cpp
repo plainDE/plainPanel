@@ -197,7 +197,7 @@ QWidget* MPRISApplet::createPlayerCard(QString serviceName,
     return playerCard;
 }
 
-QWidget* MPRISApplet::createUI(PanelLocation location,
+QWidget* MPRISApplet::createUI(QString panelLocation,
                                short panelHeight,
                                QFont font,
                                short buttonX,
@@ -222,7 +222,7 @@ QWidget* MPRISApplet::createUI(PanelLocation location,
     int mprisWidth = 300;
     int mprisHeight = 200;
     int ax = 0, ay = 0;
-    if (location == top) {
+    if (panelLocation == "top") {
         ay = panelHeight + 5;
     }
     else {

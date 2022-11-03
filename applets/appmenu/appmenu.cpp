@@ -7,7 +7,7 @@ QHash<QListWidgetItem*,QString> execData;
 QHash<QListWidgetItem*,QString> favExecData;
 QVariantList __favDesktopFiles__;
 
-menuUI AppMenu::__createUI__(QWidget* parent,  PanelLocation location, short panelHeight,
+menuUI AppMenu::__createUI__(QObject* parent,  PanelLocation location, short panelHeight,
                              QFont font, short buttonX, short buttonXRight,
                              bool triangularTabs, QString accent, QString theme,
                              qreal opacity) {
@@ -165,8 +165,7 @@ App AppMenu::readDesktopFile(QString pathToCurrentDesktopFile) {
                     myApp.icon = QIcon(iconPath);
                 }
                 else {
-                    // ICON: unknown app
-                    myApp.icon = QIcon(iconPath);
+                    myApp.icon = QIcon::fromTheme("dialog-question");
                 }
             }
         }
@@ -179,7 +178,7 @@ App AppMenu::readDesktopFile(QString pathToCurrentDesktopFile) {
 }
 
 
-void AppMenu::execApp(QWidget* parent, QString exec, QWidget* appMenuWidget) {
+void AppMenu::execApp(QObject* parent, QString exec, QWidget* appMenuWidget) {
     QProcess* process = new QProcess(parent);
 
     /* https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html

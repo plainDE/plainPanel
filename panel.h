@@ -10,6 +10,7 @@
 #include <QListWidget>
 #include <QListWidgetItem>
 #include <QJsonObject>
+#include <QJsonValue>
 
 /* including X libs here due to bug caused by including
  * them in kblayout.h */
@@ -37,26 +38,26 @@ enum PanelLocation {
     bottom
 };
 
-class panel : public QWidget {
+class Panel : public QWidget {
     Q_OBJECT
 
 
 public:   
-    panel(QWidget *parent = nullptr);
-    void basicInit();
+    Panel(QWidget *parent = nullptr,
+          QObject* execHolder = nullptr,
+          QJsonObject* _config = nullptr,
+          qint8 number = 1);
+    QJsonValue getConfigValueFromSection(QJsonObject* _config, QString section, QString key);
+    void basicInit(QJsonObject* config, qint8 number);
     void updateGeometry();
     void setRepeatingActions();
     void readConfig();
     void setPanelGeometry();
-    void setPanelUI();
-    void testpoint();
+    void setPanelUI(QObject* execHolder);
+    void testpoint(QObject* parent, QJsonObject* config);
     void animation();
-    void autostart();
     void freeUnusedMemory(bool quit);
-    ~panel();
-
-public slots:
-    void reconfigurePanel();
+    ~Panel();
 
 private slots:
     void toggleAppMenu();

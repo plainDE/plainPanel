@@ -24,10 +24,9 @@
 #include "applets/localipv4/localipv4.h"
 #include "applets/mpris/mpris.h"
 
-#include "dbusintegration.h"
 
+QJsonObject* globalConfig;
 
-QJsonObject config;
 QMap<QString,QWidget*> appletWidgets;
 QList<QLabel*> splitters;
 PanelLocation location;
@@ -39,6 +38,7 @@ QScreen* primaryScreen;
 unsigned short panelHeight, panelWidth;
 
 QVariantList activeAppletsList;
+QHash<QString,QString> panelNameByApplet;
 QList<QTimer*> activeTimers;
 
 AppMenu* menu;
@@ -59,6 +59,7 @@ UserMenuApplet _userMenu;
 userMenuUI _userMenuUI;
 
 LocalIPv4Applet ipv4Applet;
+QString ipIfname;
 
 MPRISApplet* mprisApplet;
 QWidget* mprisWidget;
@@ -68,35 +69,14 @@ qint8 countWorkspaces;
 
 QString accent;
 
+QString panelName;
 
-void panel::readConfig() {
-    // set globally readable variable for reading settings
 
-    QString homeDirectory = getenv("HOME");
-    QFile file;
-    QString data;
-
-    if (!QFile::exists(homeDirectory + "/.config/plainDE/config.json")) {
-        qDebug() << homeDirectory + "/.config/plainDE/config.json" + " does not exist. Generating new...";
-        system("python3 /usr/share/plainDE/tools/genconfig.py");
-    }
-    else {
-        system("python3 /usr/share/plainDE/tools/update-config.py");
-    }
-
-    file.setFileName(homeDirectory + "/.config/plainDE/config.json");
-    file.open(QIODevice::ReadOnly | QIODevice::Text);
-    data = file.readAll();
-    file.close();
-    config = QJsonDocument::fromJson(data.toUtf8()).object();
+QJsonValue Panel::getConfigValueFromSection(QJsonObject* _config, QString section, QString key) {
+    return _config->value(section).toObject()[key];
 }
 
-void panel::basicInit() {
-    if (QString::compare(getenv("XDG_SESSION_TYPE"), "x11", Qt::CaseInsensitive) != 0) {
-        qDebug() << "plainPanel currently works on X11 only. Quitting...";
-        exit(0);
-    }
-
+void Panel::basicInit(QJsonObject* config, qint8 number) {
     this->setWindowTitle("plainPanel");
     this->setObjectName("panel");
 
@@ -111,23 +91,24 @@ void panel::basicInit() {
 
     primaryScreen = QGuiApplication::primaryScreen();
 
-    DBusIntegration db("org.plainDE.plainPanel", "/Actions", "org.plainDE.actions", this);
+    panelName = "panel" + QString::number(number);
+    globalConfig = config;
 }
 
-void panel::setPanelGeometry() {
+void Panel::setPanelGeometry() {
     // size, location, monitor settings, window flags
 
     // Get screens
-    // QList<QScreen*> screensList = QGuiApplication::screens();
+    //QList<QScreen*> screensList = QGuiApplication::screens();
     // QGuiApplication::primaryScreen()->name();
 
     // Size & location
     unsigned short ax = 0, ay = 0;
     panelWidth = primaryScreen->size().width();
-    panelHeight = config["panelHeight"].toInt();
+    panelHeight = getConfigValueFromSection(globalConfig, panelName, "height").toInt();
     qint8 topStrut = panelHeight, bottomStrut = 0;
 
-    if (config["panelLocation"].toString() == "bottom") {
+    if (getConfigValueFromSection(globalConfig, panelName, "location").toString() == "bottom") {
         ay = primaryScreen->size().height() - panelHeight;
         topStrut = 0;
         bottomStrut = panelHeight;
@@ -135,11 +116,11 @@ void panel::setPanelGeometry() {
 
     this->setFixedHeight(panelHeight);
     this->setMaximumWidth(panelWidth);
-    if (config["expandPanel"].toBool()) {
+    if (getConfigValueFromSection(globalConfig, panelName, "expand").toBool()) {
         this->setFixedWidth(panelWidth);
     }
     else {
-        ax = config["xOffset"].toInt();
+        ax = getConfigValueFromSection(globalConfig, panelName, "xOffset").toInt();
     }
 
     qDebug() << "Coordinates: " << ax << " " << ay;
@@ -148,17 +129,12 @@ void panel::setPanelGeometry() {
     // _NET_WM_STRUT - Bugfix #4
     KWindowSystem::setStrut(panelWinID, 0, 0, topStrut, bottomStrut);
 
-    // Moving panel on other workspaces - Bugfix #3
-    this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, []() {
-        KWindowSystem::setOnDesktop(panelWinID, KWindowSystem::currentDesktop());
-    });
-
     // Flags
     this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     this->setAttribute(Qt::WA_X11NetWmWindowTypeDock);
 }
 
-void panel::updateGeometry() {
+void Panel::updateGeometry() {
     panelWidth = primaryScreen->size().width();
 
     // panel is not expanded
@@ -169,30 +145,30 @@ void panel::updateGeometry() {
 }
 
 // Only Time
-void panel::updateDateTime() {
+void Panel::updateDateTime() {
     static_cast<QPushButton*>(appletWidgets["dateTimePushButton"])->setText(
                 _dateTime.__getDisplayedData__(timeFormat));
 }
 
 // Date & Time
-void panel::updateDateTime(bool) {
+void Panel::updateDateTime(bool) {
     static_cast<QPushButton*>(appletWidgets["dateTimePushButton"])->setText(
                  _dateTime.__getDisplayedData__(timeFormat, dateFormat));
 }
 
 // ISO code
-void panel::updateKbLayout() {
+void Panel::updateKbLayout() {
     static_cast<QPushButton*>(appletWidgets["layoutName"])->setText(
                 _kbLayout.getCurrentKbLayout());
 }
 
 // Flag
-void panel::updateKbLayout(bool) {
+void Panel::updateKbLayout(bool) {
     static_cast<QPushButton*>(appletWidgets["layoutName"])->setIcon(
                 _kbLayout.getCurrentFlag());
 }
 
-void panel::updateWinList() {
+void Panel::updateWinList() {
     WindowList::getWinList(winIDs);
     for (auto it = winIDs->cbegin(), end = winIDs->cend(); it != end; ++it) {
         KWindowInfo pIDInfo(*it, NET::WMPid);
@@ -200,7 +176,7 @@ void panel::updateWinList() {
             KWindowInfo desktopInfo(*it, NET::WMDesktop);
             if (!winWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
                 KWindowInfo nameInfo(*it, NET::WMName);
-                QPixmap icon = KWindowSystem::icon(*it, -1, config["panelHeight"].toInt(), true);
+                QPixmap icon = KWindowSystem::icon(*it, -1, panelHeight, true);
                 QString winName = nameInfo.name();
                 unsigned short sz = winName.length();
                 winName.truncate(15);
@@ -245,7 +221,7 @@ void panel::updateWinList() {
 }
 
 
-void panel::updateWorkspaces() {
+void Panel::updateWorkspaces() {
     if (KWindowSystem::currentDesktop() != visibleDesktop) {
         visibleDesktop = KWindowSystem::currentDesktop();
         for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
@@ -261,13 +237,13 @@ void panel::updateWorkspaces() {
     }
 }
 
-void panel::updateLocalIPv4() {
+void Panel::updateLocalIPv4() {
     static_cast<QLabel*>(appletWidgets["ipLabel"])->setText(
-        ipv4Applet.getLocalIP(config["ipIfname"].toString())
+        ipv4Applet.getLocalIP(ipIfname)
     );
 }
 
-void panel::setRepeatingActions() {
+void Panel::setRepeatingActions() {
     // here we bring to life QTimers for updating applets data
 
     // Date & Time applet
@@ -281,7 +257,7 @@ void panel::setRepeatingActions() {
         QTimer* updateDateTimeTimer = new QTimer(this);
         updateDateTimeTimer->setInterval(1000);
         updateDateTimeTimer->setTimerType(Qt::PreciseTimer);
-        if (config["showDate"].toBool()) {
+        if (globalConfig->value("showDate").toBool()) {
             this->connect(updateDateTimeTimer, &QTimer::timeout, this, [this]() {
                 this->updateDateTime(true);
             });
@@ -295,7 +271,7 @@ void panel::setRepeatingActions() {
         // https://github.com/lxqt/lxqt-panel/blob/master/plugin-worldclock/lxqtworldclock.cpp
         unsigned short delay = 1000 - ((QTime::currentTime().msecsSinceStartOfDay()) % 1000);
         QTimer::singleShot(delay, Qt::PreciseTimer, this, [this]() {
-            if (config["showDate"].toBool()) {
+            if (globalConfig->value("showDate").toBool()) {
                 this->updateDateTime(true);
             }
             else {
@@ -314,7 +290,7 @@ void panel::setRepeatingActions() {
             QTimer* updateKbLayoutTimer = new QTimer(this);
             updateKbLayoutTimer->setInterval(350);
 
-            if (config["useCountryFlag"].toBool()) {
+            if (globalConfig->value("useCountryFlag").toBool()) {
                 this->connect(updateKbLayoutTimer, &QTimer::timeout, this, [this]() {
                     this->updateKbLayout(true);
                 });
@@ -377,7 +353,7 @@ void panel::setRepeatingActions() {
 
     /* We need to update geometry always if panel is not expanded and
      * WindowList applet used */
-    if (!config["expandPanel"].toBool()) {
+    if (!getConfigValueFromSection(globalConfig, panelName, "expandPanel").toBool()) {
         /* Window List applet currently works only on X11, so we don't need to update
          * geometry if isn't activated. */
         if (!QString::compare(getenv("XDG_SESSION_TYPE"), "x11", Qt::CaseInsensitive)) {
@@ -395,26 +371,29 @@ void panel::setRepeatingActions() {
     }
 }
 
-void panel::setPanelUI() {
+void Panel::setPanelUI(QObject* execHolder) {
     // Set font
-    panelFont.setFamily(config["fontFamily"].toString());
-    panelFont.setPointSize(config["fontSize"].toInt());
+    panelFont.setFamily(globalConfig->value("fontFamily").toString());
+    panelFont.setPointSize(globalConfig->value("fontSize").toInt());
     this->setFont(panelFont);
 
     // Theme
-    QFile stylesheetReader("/usr/share/plainDE/styles/" + config["theme"].toString());
+    QFile stylesheetReader("/usr/share/plainDE/styles/" + globalConfig->value("theme").toString());
     stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
     QTextStream styleSheet(&stylesheetReader);
     this->setStyleSheet(styleSheet.readAll());
 
     // Set accent
-    accent = config["accent"].toString();
+    accent = globalConfig->value("accent").toString();
 
     // Set opacity
-    this->setWindowOpacity(config["panelOpacity"].toDouble());
+    this->setWindowOpacity(getConfigValueFromSection(globalConfig, panelName, "opacity").toDouble());
+
+    // Set network interface
+    ipIfname = globalConfig->value("ipIfname").toString();
 
     // Icons
-    QIcon::setThemeName(config["iconTheme"].toString());
+    QIcon::setThemeName(globalConfig->value("iconTheme").toString());
 
     // Layout
     QHBoxLayout* uiLayout = new QHBoxLayout;
@@ -423,12 +402,12 @@ void panel::setPanelUI() {
 
     // Applets: show applets
     QFontMetrics fm(panelFont);
-    location = (config["panelLocation"].toString() == "top") ? top : bottom;
+    location = (getConfigValueFromSection(globalConfig, panelName, "location").toString() == "top") ? top : bottom;
 
     /* We could use QVariantList::contains, but this approach will not save
      * order of placing applets. Using loop. */
 
-    activeAppletsList = config["applets"].toArray().toVariantList();
+    activeAppletsList = getConfigValueFromSection(globalConfig, panelName, "applets").toArray().toVariantList();
 
     foreach (QVariant applet, activeAppletsList) {
         if (applet == "appmenu") {
@@ -437,14 +416,15 @@ void panel::setPanelUI() {
             this->layout()->addWidget(appMenuPushButton);
             appletWidgets["appMenuPushButton"] = appMenuPushButton;
 
-            if (QIcon::hasThemeIcon(config["menuIcon"].toString())) {
-                appMenuPushButton->setIcon(QIcon::fromTheme(config["menuIcon"].toString()));
+            if (QIcon::hasThemeIcon(globalConfig->value("menuIcon").toString())) {
+                appMenuPushButton->setIcon(QIcon::fromTheme(globalConfig->value("menuIcon").toString()));
             }
             else {
-                appMenuPushButton->setIcon(QIcon(config["menuIcon"].toString()));
+                appMenuPushButton->setIcon(QIcon(globalConfig->value("menuIcon").toString()));
             }
 
-            appMenuPushButton->setText(" " + config["menuText"].toString());
+            appMenuPushButton->setText(" " + globalConfig->value("menuText").toString());
+            panelNameByApplet["appmenu"] = panelName;
         }
 
         else if (applet == "spacer") {
@@ -458,9 +438,9 @@ void panel::setPanelUI() {
         }
 
         else if (applet == "datetime") {
-            timeFormat = config["timeFormat"].toString();
-            if (config["showDate"].toBool()) {
-                dateFormat = config["dateFormat"].toString();
+            timeFormat = globalConfig->value("timeFormat").toString();
+            if (globalConfig->value("showDate").toBool()) {
+                dateFormat = globalConfig->value("dateFormat").toString();
             }
 
             QPushButton* dateTimePushButton = new QPushButton;
@@ -469,15 +449,17 @@ void panel::setPanelUI() {
 
             appletWidgets["dateTimePushButton"] = dateTimePushButton;
 
-            if (config["showDate"].toBool()) {
+            if (globalConfig->value("showDate").toBool()) {
                 dateTimePushButton->setText(
-                            _dateTime.__getDisplayedData__(config["timeFormat"].toString(),
-                                                           config["dateFormat"].toString()));
+                            _dateTime.__getDisplayedData__(globalConfig->value("timeFormat").toString(),
+                                                           globalConfig->value("dateFormat").toString()));
             }
             else {
                 dateTimePushButton->setText(
-                            _dateTime.__getDisplayedData__(config["timeFormat"].toString()));
+                            _dateTime.__getDisplayedData__(globalConfig->value("timeFormat").toString()));
             }
+
+            panelNameByApplet["datetime"] = panelName;
         }
 
         else if (applet == "kblayout") {
@@ -505,6 +487,7 @@ void panel::setPanelUI() {
             userMenuPushButton->setIcon(QIcon::fromTheme("computer"));
 
             this->layout()->addWidget(userMenuPushButton);
+            panelNameByApplet["usermenu"] = panelName;
         }
 
         else if (applet == "volume") {
@@ -559,38 +542,86 @@ void panel::setPanelUI() {
             mprisPushButton->setFlat(true);
             appletWidgets["mprisPushButton"] = mprisPushButton;
             this->layout()->addWidget(mprisPushButton);
+            panelNameByApplet["mpris"] = panelName;
+        }
+
+        else if (applet.toString().startsWith("launcher:")) {
+            QString desktopEntryPath = "/usr/share/applications/" + applet.toString().split(':')[1];
+            QString exec;
+            QString iconPath;
+
+            QSettings desktopFileReader(desktopEntryPath, QSettings::IniFormat);
+            desktopFileReader.sync();
+            desktopFileReader.beginGroup("Desktop Entry");
+                exec = desktopFileReader.value("Exec").toString();
+                iconPath = desktopFileReader.value("Icon").toString();
+            desktopFileReader.endGroup();
+
+            /* https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html
+             * 'The Exec key' */
+            if (exec[exec.length()-2] == "%") {
+                exec.chop(2);
+            }
+
+
+            short iconSize = (double)panelHeight / 1.45;
+            QPushButton* launcherPushButton = new QPushButton;
+            if (QIcon::hasThemeIcon(iconPath)) {
+                launcherPushButton->setIcon(QIcon::fromTheme(iconPath));
+            }
+            else {
+                if (QFile::exists(iconPath)) {
+                    launcherPushButton->setIcon(QIcon(iconPath));
+                }
+                else {
+                    launcherPushButton->setIcon(QIcon::fromTheme("dialog-question"));
+                }
+            }
+            launcherPushButton->setIconSize(QSize(iconSize, iconSize));
+            launcherPushButton->setFlat(true);
+
+            this->connect(launcherPushButton, &QPushButton::clicked, this,
+                          [execHolder, exec]() {
+                QProcess* process = new QProcess(execHolder);
+                process->start(exec);
+            });
+
+            this->layout()->addWidget(launcherPushButton);
         }
 
         else {
             qDebug() << "Unknown applet:" << applet;
         }
     }
+
+    qDebug() << this;
     this->show();
 
     // Applets: set actions
     foreach (QVariant applet, activeAppletsList) {
         if (applet == "appmenu") {
-            _menuUI = menu->__createUI__(this,
-                                         location, config["panelHeight"].toInt(),
+            _menuUI = menu->__createUI__(execHolder,
+                                         location,
+                                         panelHeight,
                                          panelFont,
                                          appletWidgets["appMenuPushButton"]->x(),
                                          appletWidgets["appMenuPushButton"]->geometry().topRight().x(),
-                                         config["appMenuTriangularTabs"].toBool(), accent,
-                                         config["theme"].toString(),
-                                         config["panelOpacity"].toDouble());
+                                         globalConfig->value("appMenuTriangularTabs").toBool(), accent,
+                                         globalConfig->value("theme").toString(),
+                                         getConfigValueFromSection(globalConfig, panelName, "opacity").toDouble());
             this->connect(static_cast<QPushButton*>(appletWidgets["appMenuPushButton"]),
                           &QPushButton::clicked,
                           this,
-                          &panel::toggleAppMenu);
+                          &Panel::toggleAppMenu);
         }
 
 
         else if (applet == "datetime") {
             // https://code.woboq.org/qt5/qtbase/src/corelib/global/qnamespace.h.html#Qt::DayOfWeek
-            Qt::DayOfWeek day = static_cast<Qt::DayOfWeek>(config["firstDayOfWeek"].toInt());
+            Qt::DayOfWeek day = static_cast<Qt::DayOfWeek>(globalConfig->value("firstDayOfWeek").toInt());
 
             _dateTimeUI = _dateTime.__createUI__(location,
-                                                 config["panelHeight"].toInt(),
+                                                 panelHeight,
                                                  panelFont,
                                                  appletWidgets["dateTimePushButton"]->pos().x(),
                                                  appletWidgets["dateTimePushButton"]->geometry().topRight().x(),
@@ -599,12 +630,12 @@ void panel::setPanelUI() {
             this->connect(static_cast<QPushButton*>(appletWidgets["dateTimePushButton"]),
                           &QPushButton::clicked,
                           this,
-                          &panel::toggleCalendar);
+                          &Panel::toggleCalendar);
         }
 
         else if (applet == "kblayout") {
-            _kbLayout.__init__(config["kbLayouts"].toString().split(','));
-            if (config["useCountryFlag"].toBool()) {
+            _kbLayout.__init__(globalConfig->value("kbLayouts").toString().split(','));
+            if (globalConfig->value("useCountryFlag").toBool()) {
                 static_cast<QPushButton*>(appletWidgets["layoutName"])->setIcon(
                             QIcon(_kbLayout.getCurrentFlag()));
             }
@@ -616,24 +647,24 @@ void panel::setPanelUI() {
         else if (applet == "usermenu") {
             _userMenuUI = _userMenu.__createUI__(this,
                                                  location,
-                                                 config["panelHeight"].toInt(),
+                                                 panelHeight,
                                                  panelFont,
                                                  appletWidgets["userMenuPushButton"]->pos().x(),
                                                  appletWidgets["userMenuPushButton"]->geometry().topRight().x(),
-                                                 config["theme"].toString(),
-                                                 config["panelOpacity"].toDouble());
+                                                 globalConfig->value("theme").toString(),
+                                                 getConfigValueFromSection(globalConfig, panelName, "opacity").toDouble());
 
             this->connect(static_cast<QPushButton*>(appletWidgets["userMenuPushButton"]),
                           &QPushButton::clicked,
                           this,
-                          &panel::toggleUserMenu);
+                          &Panel::toggleUserMenu);
         }
 
         else if (applet == "volume") {
             this->connect(static_cast<QDial*>(appletWidgets["volumeDial"]),
                           &QDial::valueChanged,
                           this,
-                          &panel::setVolume);
+                          &Panel::setVolume);
         }
 
         else if (applet == "windowlist") {
@@ -666,24 +697,24 @@ void panel::setPanelUI() {
 
         else if (applet == "mpris") {
             mprisApplet = new MPRISApplet;
-            mprisWidget = mprisApplet->createUI(location,
-                                                config["panelHeight"].toInt(),
+            mprisWidget = mprisApplet->createUI(getConfigValueFromSection(globalConfig, panelName, "location").toString(),
+                                                panelHeight,
                                                 panelFont,
                                                 appletWidgets["mprisPushButton"]->x(),
                                                 appletWidgets["mprisPushButton"]->geometry().topRight().x(),
-                                                config["theme"].toString(),
-                                                config["panelOpacity"].toDouble(),
+                                                globalConfig->value("theme").toString(),
+                                                getConfigValueFromSection(globalConfig, panelName, "opacity").toDouble(),
                                                 accent);
 
             this->connect(static_cast<QPushButton*>(appletWidgets["mprisPushButton"]),
                           &QPushButton::clicked,
                           this,
-                          &panel::toggleMPRIS);
+                          &Panel::toggleMPRIS);
         }
 
         else {
-            // No actions for spacer and splitter applet
-            if (applet != "spacer" && applet != "splitter") {
+            // No additional actions for spacer, splitter and launcher applet
+            if (applet != "spacer" && applet != "splitter" && !applet.toString().startsWith("launcher")) {
                 qDebug() << "Unknown applet:" << applet;
             }
         }
@@ -691,20 +722,22 @@ void panel::setPanelUI() {
 
     minWidth = this->width();
     setRepeatingActions();
-    this->freeUnusedMemory(false);
 }
 
 
 // Slots
-void panel::toggleAppMenu() {    
+void Panel::toggleAppMenu() {
     if (!_menuUI.menuWidget->isVisible()) {
         _menuUI.searchBox->clear();
         menu->buildMenu(_menuUI.appListWidget, "");
-        menu->buildFavMenu(_menuUI.favListWidget, config["favApps"].toArray().toVariantList());
+        menu->buildFavMenu(_menuUI.favListWidget, globalConfig->value("favApps").toArray().toVariantList());
         _menuUI.tabWidget->setCurrentIndex(0);
 
         short ax;
-        short offset = (config["expandPanel"].toBool() ? 0 : config["xOffset"].toInt());
+        short offset = 0;
+        if (!getConfigValueFromSection(globalConfig, panelNameByApplet["appmenu"], "expand").toBool()) {
+            offset = getConfigValueFromSection(globalConfig, panelNameByApplet["appmenu"], "xOffset").toInt();
+        }
         short buttonX = appletWidgets["appMenuPushButton"]->x();
         short buttonXRight = appletWidgets["appMenuPushButton"]->geometry().topRight().x();
         short appMenuWidth = 450;
@@ -725,10 +758,13 @@ void panel::toggleAppMenu() {
     }
 }
 
-void panel::toggleCalendar() {
+void Panel::toggleCalendar() {
     if (!_dateTimeUI.calendarWidget->isVisible()) {
         short ax;
-        short offset = (config["expandPanel"].toBool() ? 0 : config["xOffset"].toInt());
+        short offset = 0;
+        if (!getConfigValueFromSection(globalConfig, panelNameByApplet["datetime"], "expand").toBool()) {
+            offset = getConfigValueFromSection(globalConfig, panelNameByApplet["datetime"], "xOffset").toInt();
+        }
         short buttonX = appletWidgets["dateTimePushButton"]->x();
         short buttonXRight = appletWidgets["dateTimePushButton"]->geometry().topRight().x();
         short calendarWidth = 300;
@@ -745,12 +781,15 @@ void panel::toggleCalendar() {
     else _dateTimeUI.calendarWidget->hide();
 }
 
-void panel::toggleUserMenu() {
+void Panel::toggleUserMenu() {
     if (!_userMenuUI.userMenuWidget->isVisible()) {
         QFontMetrics fm(panelFont);
         short userMenuWidth = fm.horizontalAdvance("About plainDE") + 20;
         short ax;
-        short offset = (config["expandPanel"].toBool() ? 0 : config["xOffset"].toInt());
+        short offset = 0;
+        if (!getConfigValueFromSection(globalConfig, panelNameByApplet["usermenu"], "expand").toBool()) {
+            offset = getConfigValueFromSection(globalConfig, panelNameByApplet["usermenu"], "xOffset").toInt();
+        }
         short buttonX = appletWidgets["userMenuPushButton"]->x();
         short buttonXRight = appletWidgets["userMenuPushButton"]->geometry().topRight().x();
 
@@ -768,18 +807,18 @@ void panel::toggleUserMenu() {
     else _userMenuUI.userMenuWidget->hide();
 }
 
-void panel::toggleMPRIS() {
+void Panel::toggleMPRIS() {
     if (!mprisWidget->isVisible()) {
         delete mprisApplet;
         delete mprisWidget;
         mprisApplet = new MPRISApplet;
-        mprisWidget = mprisApplet->createUI(location,
-                                            config["panelHeight"].toInt(),
+        mprisWidget = mprisApplet->createUI(getConfigValueFromSection(globalConfig, panelNameByApplet["mpris"], "location").toString(),
+                                            panelHeight,
                                             panelFont,
                                             appletWidgets["mprisPushButton"]->x(),
                                             appletWidgets["mprisPushButton"]->geometry().topRight().x(),
-                                            config["theme"].toString(),
-                                            config["panelOpacity"].toDouble(),
+                                            globalConfig->value("theme").toString(),
+                                            getConfigValueFromSection(globalConfig, panelName, "opacity").toDouble(),
                                             accent);
         mprisWidget->show();
     }
@@ -788,28 +827,30 @@ void panel::toggleMPRIS() {
     }
 }
 
-void panel::filterAppsList() {
+void Panel::filterAppsList() {
     menu->buildMenu(_menuUI.appListWidget, _menuUI.searchBox->text());
 }
 
-void panel::setVolume() {
+void Panel::setVolume() {
     short newValue = static_cast<QDial*>(appletWidgets["volumeDial"])->value();
     VolumeApplet::setVolume(newValue);
     static_cast<QLabel*>(appletWidgets["volumeLabel"])->setText(QString::number(newValue) + "%");
 }
 
 
-void panel::animation() {
-    if (config["enableAnimation"].toBool()) {
+void Panel::animation() {
+    if (globalConfig->value("enableAnimation").toBool()) {
         QPropertyAnimation* panelAnimation = new QPropertyAnimation(this, "pos");
         panelAnimation->setDuration(250);
 
         QScreen* primaryScreen = QGuiApplication::primaryScreen();
 
-        unsigned short panelHeight = config["panelHeight"].toInt();
-        unsigned short ax = (config["expandPanel"].toBool() ? 0 : config["xOffset"].toInt());
+        unsigned short ax = 0;
+        if (!getConfigValueFromSection(globalConfig, panelName, "expand").toBool()) {
+            ax = getConfigValueFromSection(globalConfig, panelName, "xOffset").toInt();
+        }
 
-        if (config["panelLocation"].toString() == "top") {
+        if (getConfigValueFromSection(globalConfig, panelName, "location").toString() == "top") {
             panelAnimation->setStartValue(QPoint(ax, -panelHeight));
             panelAnimation->setEndValue(QPoint(ax, 0));
         }
@@ -821,62 +862,26 @@ void panel::animation() {
     }
 }
 
-void panel::autostart() {
-    QStringList autostartEntries = config["autostart"].toVariant().toStringList();
-    QString pathToCurrentDesktopFile = "";
-    QString exec = "";
+void Panel::testpoint(QObject* parent, QJsonObject* config) {
+    // parent is Initializer class instance
+    // config is ~/.config/plainDE/config.json
 
-    foreach (QString entry, autostartEntries) {
-        pathToCurrentDesktopFile = "/usr/share/applications/" + entry;
-
-        QSettings desktopFileReader(pathToCurrentDesktopFile, QSettings::IniFormat);
-        desktopFileReader.sync();
-        desktopFileReader.beginGroup("Desktop Entry");
-            exec = desktopFileReader.value("Exec").toString();
-        desktopFileReader.endGroup();
-
-        /* https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html
-         * 'The Exec key' */
-        if (exec[exec.length()-2] == "%") {
-            exec.chop(2);
-        }
-        QProcess* process = new QProcess(this);
-        process->start(exec);
-    }
-
-
-    // setxkbmap
-    if (!config["kbLayouts"].toVariant().toStringList().isEmpty() &&
-        !config["kbLayoutToggle"].toString().isEmpty()) {
-        QProcess* setxkbmapProcess = new QProcess(this);
-        setxkbmapProcess->start("setxkbmap -layout " + config["kbLayouts"].toString() +
-                                " -option " + config["kbLayoutToggle"].toString());
-    }
+    // here you can put your code to test
 }
 
-void panel::freeUnusedMemory(bool quit) {
-    if (!quit) {
-        if (!activeAppletsList.contains("windowlist")) {
-            delete windowListLayout;
-            delete winIDs;
-        }
-    }
-    else {
-        if (activeAppletsList.contains("appmenu")) {
-            delete menu;
-        }
-        if (activeAppletsList.contains("windowlist")) {
-            QList<WId> keys = winWidgets.keys();
-            foreach (WId currentWindow, keys) {
-                delete winWidgets[currentWindow];
-            }
-        }
-    }
+Panel::Panel(QWidget* parent,
+             QObject* execHolder,
+             QJsonObject* _config,
+             qint8 number): QWidget(parent) {
+    basicInit(_config, number);
+    setPanelGeometry();
+    setPanelUI(execHolder);
+    animation();
+
+    testpoint(execHolder, _config);
 }
 
-/* We need to clear objects from panel, read configs again
- * when reconfiguring panel */
-void panel::reconfigurePanel() {
+Panel::~Panel() {
     // Stop all timers
     foreach (QTimer* currentTimer, activeTimers) {
         currentTimer->stop();
@@ -934,40 +939,7 @@ void panel::reconfigurePanel() {
     splitters.clear();
     winIDs->clear();
     winWidgets.clear();
+    panelNameByApplet.clear();
 
     this->hide();
-
-
-    this->basicInit();
-    this->readConfig();
-    this->setPanelGeometry();
-    this->setPanelUI();
-    this->animation();
-
-    // setxkbmap
-    if (!config["kbLayouts"].toVariant().toStringList().isEmpty() &&
-        !config["kbLayoutToggle"].toString().isEmpty()) {
-        QProcess* setxkbmapProcess = new QProcess(this);
-        setxkbmapProcess->start("setxkbmap -layout " + config["kbLayouts"].toString() +
-                                " -option " + config["kbLayoutToggle"].toString());
-    }
-}
-
-void panel::testpoint() {
-    // here you can put your code to test
-}
-
-panel::panel(QWidget *parent): QWidget(parent) {
-    basicInit();
-    readConfig();
-    setPanelGeometry();
-    setPanelUI();
-    animation();
-    autostart();
-
-    testpoint();
-}
-
-panel::~panel() {
-
 }

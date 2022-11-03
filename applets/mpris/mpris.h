@@ -38,7 +38,7 @@ public:
                               QString theme,
                               QString accent);
 
-    QWidget* createUI(PanelLocation location,
+    QWidget* createUI(QString panelLocation,
                       short panelHeight,
                       QFont font,
                       short buttonX,

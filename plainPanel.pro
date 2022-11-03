@@ -26,6 +26,7 @@ SOURCES += \
     applets/windowlist/windowlist.cpp \
     applets/workspaces/workspaces.cpp \
     dbusintegration.cpp \
+    initializer.cpp \
     main.cpp \
     panel.cpp
 
@@ -41,6 +42,7 @@ HEADERS += \
     applets/windowlist/windowlist.h \
     applets/workspaces/workspaces.h \
     dbusintegration.h \
+    initializer.h \
     panel.h
 
 CONFIG += lrelease
@@ -51,5 +53,7 @@ qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
 
+DISTFILES += \
+    devnotes.txt
 
 FORMS +=
