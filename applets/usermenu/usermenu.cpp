@@ -2,7 +2,7 @@
 
 #include <QDebug>
 
-userMenuUI UserMenuApplet::__createUI__(QWidget* parent, PanelLocation location, short panelHeight,
+userMenuUI UserMenuApplet::__createUI__(QObject* parent, PanelLocation location, short panelHeight,
                                         QFont font, short buttonX, short buttonXRight, QString theme,
                                         qreal opacity) {
     QWidget* userMenuWidget = new QWidget;
