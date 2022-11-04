@@ -17,10 +17,10 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/calendar.png"> Date & Time<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/extensions.png"> Splitter<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/preferences-desktop-user.png"> User menu<br>
-  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/16/extensions.png"> Local IPv4 Indicator<br>
+  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/categories/16/cs-network.png"> Local IPv4 Indicator<br>
   
   <h2>Screenshots</h2>
-  <img src="scr-0.2.1.png" width=640 height=480>
+  <img src="scr-0.4.png" width=640 height=480>
   
   <h2>Dependencies</h2>
   <code>git</code>, <code>qt6-base</code>, <code>xorg</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>, <code>python3</code>, <code>xcompmgr</code>
