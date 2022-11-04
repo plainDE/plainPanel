@@ -645,7 +645,7 @@ void Panel::setPanelUI(QObject* execHolder) {
         }
 
         else if (applet == "usermenu") {
-            _userMenuUI = _userMenu.__createUI__(this,
+            _userMenuUI = _userMenu.__createUI__(execHolder,
                                                  location,
                                                  panelHeight,
                                                  panelFont,
