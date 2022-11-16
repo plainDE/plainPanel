@@ -20,7 +20,7 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/categories/22/cs-network.png"> Local IPv4 Indicator<br>
   
   <h2>Screenshots</h2>
-  <img src="scr-0.4.png" width=640 height=480>
+  <img src="scr-0.4.1.png" width=640 height=480>
   
   <h2>Dependencies</h2>
   <code>git</code>, <code>qt6-base</code>, <code>xorg</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>, <code>python3</code>, <code>picom</code>
