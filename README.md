@@ -23,7 +23,7 @@
   <img src="scr-0.4.png" width=640 height=480>
   
   <h2>Dependencies</h2>
-  <code>git</code>, <code>qt6-base</code>, <code>xorg</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>, <code>python3</code>, <code>xcompmgr</code>
+  <code>git</code>, <code>qt6-base</code>, <code>xorg</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>, <code>python3</code>, <code>picom</code>
   
   <h2>Installation</h2>
   You can either use <a href="https://github.com/plainDE/plainInstaller">plainInstaller</a>, a script that will download, compile and install everything automatically, or install plainPanel only.<br><br>
