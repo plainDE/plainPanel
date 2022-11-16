@@ -546,7 +546,9 @@ void Panel::setPanelUI(QObject* execHolder) {
         }
 
         else if (applet.toString().startsWith("launcher:")) {
-            QString desktopEntryPath = "/usr/share/applications/" + applet.toString().split(':')[1];
+            QStringList launcherData = applet.toString().split(':');
+
+            QString desktopEntryPath = "/usr/share/applications/" + launcherData[1];
             QString exec;
             QString iconPath;
 
@@ -564,7 +566,10 @@ void Panel::setPanelUI(QObject* execHolder) {
             }
 
 
-            short iconSize = (double)panelHeight / 1.45;
+            short iconSize;
+            iconSize = getConfigValueFromSection(globalConfig, panelName, "launcherIconSize").toInt();
+            //iconSize = (double)panelHeight / 1.45;
+
             QPushButton* launcherPushButton = new QPushButton;
             if (QIcon::hasThemeIcon(iconPath)) {
                 launcherPushButton->setIcon(QIcon::fromTheme(iconPath));
