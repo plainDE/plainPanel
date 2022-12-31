@@ -3,6 +3,7 @@
 
 #include <QtGlobal>
 #include <KWindowSystem>
+#include <KX11Extras>
 
 
 class Workspaces

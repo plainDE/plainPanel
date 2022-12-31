@@ -13,6 +13,7 @@
 #include <QHBoxLayout>
 
 #include <KWindowSystem>
+#include <KX11Extras>
 
 #include "applet.h"
 #include "applets/appmenu/appmenu.h"
@@ -23,6 +24,7 @@
 #include "applets/windowlist/windowlist.h"
 #include "applets/localipv4/localipv4.h"
 #include "applets/mpris/mpris.h"
+#include "applets/battery/battery.h"
 
 
 QJsonObject* globalConfig;
@@ -64,6 +66,12 @@ QString ipIfname;
 MPRISApplet* mprisApplet;
 QWidget* mprisWidget;
 
+BatteryApplet* batteryApplet;
+QString batteryName;
+Battery lastBatteryState;
+Battery batteryState;
+qint8 batteryIconSize;
+
 qint8 visibleDesktop;
 qint8 countWorkspaces;
 
@@ -86,8 +94,8 @@ void Panel::basicInit(QJsonObject* config, qint8 number) {
     KWindowInfo pIDInfo(panelWinID, NET::WMPid);
     panelPID = pIDInfo.pid();
 
-    visibleDesktop = KWindowSystem::currentDesktop();
-    countWorkspaces = KWindowSystem::numberOfDesktops();
+    visibleDesktop = KX11Extras::currentDesktop();
+    countWorkspaces = KX11Extras::numberOfDesktops();
 
     primaryScreen = QGuiApplication::primaryScreen();
 
@@ -127,7 +135,7 @@ void Panel::setPanelGeometry() {
     this->move(ax, ay);
 
     // _NET_WM_STRUT - Bugfix #4
-    KWindowSystem::setStrut(panelWinID, 0, 0, topStrut, bottomStrut);
+    KX11Extras::setStrut(panelWinID, 0, 0, topStrut, bottomStrut);
 
     // Flags
     this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
@@ -176,7 +184,7 @@ void Panel::updateWinList() {
             KWindowInfo desktopInfo(*it, NET::WMDesktop);
             if (!winWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
                 KWindowInfo nameInfo(*it, NET::WMName);
-                QPixmap icon = KWindowSystem::icon(*it, -1, panelHeight, true);
+                QPixmap icon = KX11Extras::icon(*it, -1, panelHeight, true);
                 QString winName = nameInfo.name();
                 unsigned short sz = winName.length();
                 winName.truncate(15);
@@ -191,10 +199,10 @@ void Panel::updateWinList() {
                 this->connect(windowButton, &QPushButton::clicked, this, [windowButton]() {
                     KWindowInfo windowInfo(winWidgets.key(windowButton), NET::WMState | NET::XAWMState);
                     if (windowInfo.mappingState() != NET::Visible || windowInfo.isMinimized()) {
-                        KWindowSystem::unminimizeWindow(winWidgets.key(windowButton));
+                        KX11Extras::unminimizeWindow(winWidgets.key(windowButton));
                     }
                     else {
-                        KWindowSystem::minimizeWindow(winWidgets.key(windowButton));
+                        KX11Extras::minimizeWindow(winWidgets.key(windowButton));
                     }
                 });
             }
@@ -220,19 +228,28 @@ void Panel::updateWinList() {
     }
 }
 
+void Panel::accentActiveWindow() {
+    WId activeWinID = KX11Extras::activeWindow();
+    foreach (QPushButton* button, winWidgets) {
+        button->setStyleSheet("");
+    }
+    if (activeWinID != 0 && winWidgets.contains(activeWinID)) {
+        winWidgets[activeWinID]->setStyleSheet("background-color: " + accent + "; color: #ffffff;");
+    }
+
+}
+
 
 void Panel::updateWorkspaces() {
-    if (KWindowSystem::currentDesktop() != visibleDesktop) {
-        visibleDesktop = KWindowSystem::currentDesktop();
-        for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
-            if ((workspace+1) == visibleDesktop) {
-                appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
-                            "background-color: " + accent + "; color: #ffffff;");
-            }
-            else {
-                appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
-                            "background-color: #9a9996; color: #000000;");
-            }
+    visibleDesktop = KX11Extras::currentDesktop();
+    for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
+        if ((workspace+1) == visibleDesktop) {
+            appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
+                        "background-color: " + accent + "; color: #ffffff;");
+        }
+        else {
+            appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
+                        "background-color: #9a9996; color: #000000;");
         }
     }
 }
@@ -241,6 +258,36 @@ void Panel::updateLocalIPv4() {
     static_cast<QLabel*>(appletWidgets["ipLabel"])->setText(
         ipv4Applet.getLocalIP(ipIfname)
     );
+}
+
+void Panel::updateBatteryState() {
+    batteryState = batteryApplet->getBatteryState(batteryName);
+
+    if (batteryState.percentage != lastBatteryState.percentage) {
+        static_cast<QLabel*>(appletWidgets["batteryLabel"])->setText(
+                    QString::number(batteryState.percentage) + "%");
+
+    }
+    if (QString::compare(batteryState.iconName, lastBatteryState.iconName)) {
+        static_cast<QLabel*>(appletWidgets["batteryIcon"])->setPixmap(
+                    QIcon("/usr/share/plainDE/icons/" + batteryState.iconName).pixmap(
+                        batteryIconSize, batteryIconSize));
+    }
+}
+
+void Panel::updateBatteryStateDark() {
+    batteryState = batteryApplet->getBatteryState(batteryName);
+
+    if (batteryState.percentage != lastBatteryState.percentage) {
+        static_cast<QLabel*>(appletWidgets["batteryLabel"])->setText(
+                    QString::number(batteryState.percentage) + "%");
+
+    }
+    if (QString::compare(batteryState.iconName, lastBatteryState.iconName)) {
+        static_cast<QLabel*>(appletWidgets["batteryIcon"])->setPixmap(
+                    QIcon("/usr/share/plainDE/icons/" + batteryState.iconName + "-dark").pixmap(
+                        batteryIconSize, batteryIconSize));
+    }
 }
 
 void Panel::setRepeatingActions() {
@@ -312,13 +359,18 @@ void Panel::setRepeatingActions() {
     // Window list applet
     if (activeAppletsList.contains("windowlist")) {
         if (!QString::compare(getenv("XDG_SESSION_TYPE"), "x11", Qt::CaseInsensitive)) {
-            QTimer* updateWinListTimer = new QTimer(this);
+            /* QTimer* updateWinListTimer = new QTimer(this);
             updateWinListTimer->setInterval(400);
             this->connect(updateWinListTimer, &QTimer::timeout, this, [this]() {
                 this->updateWinList();
             });
             updateWinListTimer->start();
-            activeTimers.append(updateWinListTimer);
+            activeTimers.append(updateWinListTimer);*/
+
+            this->connect(KX11Extras::self(), &KX11Extras::windowAdded, this, &Panel::updateWinList);
+            //this->connect(KX11Extras::self(), &KX11Extras::windowRemoved, this, &Panel::updateWinList);
+            this->connect(KX11Extras::self(), &KX11Extras::windowChanged, this, &Panel::updateWinList);
+            this->connect(KX11Extras::self(), &KX11Extras::activeWindowChanged, this, &Panel::accentActiveWindow);
         }
         else {
             qDebug() << "Window List applet currently works only on X11. Skipping...";
@@ -328,14 +380,16 @@ void Panel::setRepeatingActions() {
 
     // Workspaces applet
     if (activeAppletsList.contains("workspaces")) {
-        QTimer* updateWorkspacesTimer = new QTimer(this);
+        /*QTimer* updateWorkspacesTimer = new QTimer(this);
         updateWorkspacesTimer->setInterval(400);
 
         this->connect(updateWorkspacesTimer, &QTimer::timeout, this, [this]() {
            this->updateWorkspaces();
         });
         updateWorkspacesTimer->start();
-        activeTimers.append(updateWorkspacesTimer);
+        activeTimers.append(updateWorkspacesTimer);*/
+
+        this->connect(KX11Extras::self(), &KX11Extras::currentDesktopChanged, this, &Panel::updateWorkspaces);
     }
 
     // Local IP applet
@@ -348,6 +402,22 @@ void Panel::setRepeatingActions() {
         });
         updateLocalIPTimer->start();
         activeTimers.append(updateLocalIPTimer);
+    }
+
+    // Battery applet
+    if (activeAppletsList.contains("battery")) {
+        QTimer* updateBatteryTimer = new QTimer(this);
+        updateBatteryTimer->setInterval(5000);
+
+        if (!globalConfig->value("theme").toString().contains("dark")) {
+            this->connect(updateBatteryTimer, &QTimer::timeout, this, &Panel::updateBatteryState);
+        }
+        else {
+            this->connect(updateBatteryTimer, &QTimer::timeout, this, &Panel::updateBatteryStateDark);
+        }
+
+        updateBatteryTimer->start();
+        activeTimers.append(updateBatteryTimer);
     }
 
 
@@ -515,14 +585,14 @@ void Panel::setPanelUI(QObject* execHolder) {
         }
 
         else if (applet == "workspaces") {
-            qint8 countWorkspaces = KWindowSystem::numberOfDesktops();
+            qint8 countWorkspaces = KX11Extras::numberOfDesktops();
             for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
                 QPushButton* currentWorkspace = new QPushButton(QString::number(workspace+1));
                 currentWorkspace->setMaximumWidth(fm.horizontalAdvance("100"));
                 currentWorkspace->setStyleSheet("background-color: #9a9996; color: #000000;");
                 appletWidgets["workspace" + QString::number(workspace+1)] = currentWorkspace;
 
-                if (KWindowSystem::currentDesktop() == workspace+1) {
+                if (KX11Extras::currentDesktop() == workspace+1) {
                     currentWorkspace->setStyleSheet("background-color: " + accent + "; color: #ffffff;");
                 }
                 this->layout()->addWidget(currentWorkspace);
@@ -543,6 +613,18 @@ void Panel::setPanelUI(QObject* execHolder) {
             appletWidgets["mprisPushButton"] = mprisPushButton;
             this->layout()->addWidget(mprisPushButton);
             panelNameByApplet["mpris"] = panelName;
+        }
+
+        else if (applet == "battery") {
+            batteryIconSize = (double)panelHeight / 1.45;
+            QLabel* batteryIcon = new QLabel;
+            appletWidgets["batteryIcon"] = batteryIcon;
+            QLabel* batteryLabel = new QLabel("100%");
+            appletWidgets["batteryLabel"] = batteryLabel;
+            this->layout()->addWidget(batteryIcon);
+            this->layout()->addWidget(batteryLabel);
+            panelNameByApplet["batteryIcon"] = panelName;
+            panelNameByApplet["batteryLabel"] = panelName;
         }
 
         else if (applet.toString().startsWith("launcher:")) {
@@ -673,7 +755,7 @@ void Panel::setPanelUI(QObject* execHolder) {
         }
 
         else if (applet == "windowlist") {
-            this->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, []() {
+            this->connect(KX11Extras::self(), &KX11Extras::windowRemoved, this, []() {
                 WindowList::getWinList(winIDs);
                 QList<WId> keys = winWidgets.keys();
                 foreach (WId id, keys) {
@@ -685,13 +767,14 @@ void Panel::setPanelUI(QObject* execHolder) {
             });
 
             this->updateWinList();
+            this->accentActiveWindow();
         }
 
         else if (applet == "workspaces") {
             for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
                 this->connect(static_cast<QPushButton*>(appletWidgets["workspace" + QString::number(workspace+1)]),
                         &QPushButton::clicked, this, [workspace]() {
-                    KWindowSystem::setCurrentDesktop(workspace+1);
+                    KX11Extras::setCurrentDesktop(workspace+1);
                 });
             }
         }
@@ -715,6 +798,27 @@ void Panel::setPanelUI(QObject* execHolder) {
                           &QPushButton::clicked,
                           this,
                           &Panel::toggleMPRIS);
+        }
+
+        else if (applet == "battery") {
+            batteryApplet = new BatteryApplet;
+            batteryName = batteryApplet->init();
+            if (!batteryName.isEmpty()) {
+                if (!globalConfig->value("theme").toString().contains("dark")) {
+                    this->updateBatteryState();
+                }
+                else {
+                    this->updateBatteryStateDark();
+                }
+            }
+            else {
+                delete appletWidgets["batteryIcon"];
+                appletWidgets.remove("batteryIcon");
+                delete appletWidgets["batteryLabel"];
+                appletWidgets.remove("batteryLabel");
+                qDebug() << "Deactivating battery applet (no battery found)...";
+                activeAppletsList.removeOne("battery");
+            }
         }
 
         else {
@@ -872,6 +976,7 @@ void Panel::testpoint(QObject* parent, QJsonObject* config) {
     // config is ~/.config/plainDE/config.json
 
     // here you can put your code to test
+
 }
 
 Panel::Panel(QWidget* parent,
@@ -887,11 +992,13 @@ Panel::Panel(QWidget* parent,
 }
 
 Panel::~Panel() {
+    qDebug() << "DEBUG POINT 1";
     // Stop all timers
     foreach (QTimer* currentTimer, activeTimers) {
         currentTimer->stop();
         delete currentTimer;
     }
+
 
     // Delete App Menu
     if (activeAppletsList.contains("appmenu")) {
@@ -928,11 +1035,14 @@ Panel::~Panel() {
     foreach (QLabel* currentLabel, splitters) {
         delete currentLabel;
     }
+    qDebug() << "DEBUG POINT 2";
 
     // Delete all widgets from panel
     foreach (QWidget* currentWidget, appletWidgets) {
         delete currentWidget;
     }
+    qDebug() << "DEBUG POINT 3";
+
 
     // Delete layout
     delete this->layout();

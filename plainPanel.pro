@@ -17,6 +17,7 @@ INCLUDEPATH += /usr/include/KF5/KWindowSystem
 SOURCES += \
     applet.cpp \
     applets/appmenu/appmenu.cpp \
+    applets/battery/battery.cpp \
     applets/datetime/datetime.cpp \
     applets/kblayout/kblayout.cpp \
     applets/localipv4/localipv4.cpp \
@@ -33,6 +34,7 @@ SOURCES += \
 HEADERS += \
     applet.h \
     applets/appmenu/appmenu.h \
+    applets/battery/battery.h \
     applets/datetime/datetime.h \
     applets/kblayout/kblayout.h \
     applets/localipv4/localipv4.h \

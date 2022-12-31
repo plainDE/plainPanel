@@ -66,18 +66,21 @@ private slots:
     void toggleMPRIS();
     void filterAppsList();
     void setVolume();
+    void accentActiveWindow();
     //void updateWindowList();
     //void updateWorkspaces();
     //void updateAppletsData();
 
 
     // updating applets data
-    void updateDateTime(bool);  // Date & Time applet (Time + Date)
-    void updateDateTime();      // Date & Time applet (Time only)
-    void updateKbLayout();      // Keyboard layout applet (ISO code)
-    void updateKbLayout(bool);  // Keyboard layout applet (flag)
-    void updateWinList();       // Window List applet
-    void updateWorkspaces();    // Workspaces applet
-    void updateLocalIPv4();       // Local IP applet
+    void updateDateTime(bool);      // Date & Time applet (Time + Date)
+    void updateDateTime();          // Date & Time applet (Time only)
+    void updateKbLayout();          // Keyboard layout applet (ISO code)
+    void updateKbLayout(bool);      // Keyboard layout applet (flag)
+    void updateWinList();           // Window List applet
+    void updateWorkspaces();        // Workspaces applet
+    void updateLocalIPv4();         // Local IP applet
+    void updateBatteryState();      // Battery applet
+    void updateBatteryStateDark();  // Battery applet (on dark theme)
 };
 #endif // PANEL_H
