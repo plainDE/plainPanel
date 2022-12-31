@@ -10,6 +10,8 @@
   <h2>Applets</h2>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/app-launcher.png"> App Menu<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/preferences-system-windows.png"> Window List<br>
+  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/utilities-terminal.png"> Launcher<br>
+  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/extensions.png"> Battery<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/extensions.png"> Spacer<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/workspace-switcher-top-left.png"> Worskpaces<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/preferences-system-sound.png"> MPRIS<br>
@@ -24,7 +26,7 @@
   <img src="scr-0.4.2.png" width=640 height=480>
   
   <h2>Dependencies</h2>
-  <code>git</code>, <code>qt6-base</code>, <code>xorg</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>, <code>python3</code>, <code>picom</code>
+  <code>git</code>, <code>qt6-base</code>, <code>xorg</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>, <code>python3</code>, <code>picom</code>, <code>upower</code>
   
   <h2>Installation</h2>
   You can either use <a href="https://github.com/plainDE/plainInstaller">plainInstaller</a>, a script that will download, compile and install everything automatically, or install plainPanel only.<br><br>
