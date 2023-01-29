@@ -78,6 +78,7 @@ private slots:
     void updateKbLayout();          // Keyboard layout applet (ISO code)
     void updateKbLayout(bool);      // Keyboard layout applet (flag)
     void updateWinList();           // Window List applet
+    void updateWinTitles();         // Window List applet
     void updateWorkspaces();        // Workspaces applet
     void updateLocalIPv4();         // Local IP applet
     void updateBatteryState();      // Battery applet

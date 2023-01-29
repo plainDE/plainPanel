@@ -3,11 +3,9 @@
 
 #include <QtGlobal>
 #include <KWindowSystem>
-#include <KX11Extras>
+#include <KWindowSystem>
 
-
-class Workspaces
-{
+class Workspaces {
 public:
     void setCurrentSpace(qint8 newSpace);
 };

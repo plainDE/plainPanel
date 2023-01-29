@@ -5,7 +5,6 @@
 #include <QJsonObject>
 #include <QSettings>
 #include <QProcess>
-#include <KX11Extras>
 
 #include "dbusintegration.h"
 #include "panel.h"
@@ -91,9 +90,9 @@ void Initializer::reconfigurePanel() {
     }
 
     // Moving panel on other workspaces - Bugfix #3
-    this->connect(KX11Extras::self(), &KX11Extras::currentDesktopChanged, this, []() {
+    this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, []() {
         foreach (WId id, panelIDs) {
-            KX11Extras::setOnDesktop(id, KX11Extras::currentDesktop());
+            KWindowSystem::setOnDesktop(id, KWindowSystem::currentDesktop());
         }
     });
 
@@ -124,9 +123,9 @@ Initializer::Initializer() {
     }
 
     // Moving panel on other workspaces - Bugfix #3
-    this->connect(KX11Extras::self(), &KX11Extras::currentDesktopChanged, this, []() {
+    this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, []() {
         foreach (WId id, panelIDs) {
-            KX11Extras::setOnDesktop(id, KX11Extras::currentDesktop());
+            KWindowSystem::setOnDesktop(id, KWindowSystem::currentDesktop());
         }
     });
 

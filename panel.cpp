@@ -13,7 +13,6 @@
 #include <QHBoxLayout>
 
 #include <KWindowSystem>
-#include <KX11Extras>
 
 #include "applet.h"
 #include "applets/appmenu/appmenu.h"
@@ -94,8 +93,8 @@ void Panel::basicInit(QJsonObject* config, qint8 number) {
     KWindowInfo pIDInfo(panelWinID, NET::WMPid);
     panelPID = pIDInfo.pid();
 
-    visibleDesktop = KX11Extras::currentDesktop();
-    countWorkspaces = KX11Extras::numberOfDesktops();
+    visibleDesktop = KWindowSystem::currentDesktop();
+    countWorkspaces = KWindowSystem::numberOfDesktops();
 
     primaryScreen = QGuiApplication::primaryScreen();
 
@@ -135,7 +134,7 @@ void Panel::setPanelGeometry() {
     this->move(ax, ay);
 
     // _NET_WM_STRUT - Bugfix #4
-    KX11Extras::setStrut(panelWinID, 0, 0, topStrut, bottomStrut);
+    KWindowSystem::setStrut(panelWinID, 0, 0, topStrut, bottomStrut);
 
     // Flags
     this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
@@ -184,7 +183,7 @@ void Panel::updateWinList() {
             KWindowInfo desktopInfo(*it, NET::WMDesktop);
             if (!winWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
                 KWindowInfo nameInfo(*it, NET::WMName);
-                QPixmap icon = KX11Extras::icon(*it, -1, panelHeight, true);
+                QPixmap icon = KWindowSystem::icon(*it, -1, panelHeight, true);
                 QString winName = nameInfo.name();
                 unsigned short sz = winName.length();
                 winName.truncate(15);
@@ -199,27 +198,15 @@ void Panel::updateWinList() {
                 this->connect(windowButton, &QPushButton::clicked, this, [windowButton]() {
                     KWindowInfo windowInfo(winWidgets.key(windowButton), NET::WMState | NET::XAWMState);
                     if (windowInfo.mappingState() != NET::Visible || windowInfo.isMinimized()) {
-                        KX11Extras::unminimizeWindow(winWidgets.key(windowButton));
+                        KWindowSystem::unminimizeWindow(winWidgets.key(windowButton));
                     }
                     else {
-                        KX11Extras::minimizeWindow(winWidgets.key(windowButton));
+                        KWindowSystem::minimizeWindow(winWidgets.key(windowButton));
                     }
                 });
             }
             else {
-                if (desktopInfo.isOnCurrentDesktop()) {
-                    KWindowInfo nameInfo(*it, NET::WMName);
-                    QString newName = nameInfo.name();;
-                    unsigned short sz = newName.length();
-                    newName.truncate(15);
-                    if (newName.length() < sz) {
-                        newName += "...";
-                    }
-                    if (winWidgets[*it]->text() != newName) {
-                        winWidgets[*it]->setText(newName);
-                    }
-                }
-                else {
+                if (!desktopInfo.isOnCurrentDesktop()) {
                     delete winWidgets[*it];
                     winWidgets.remove(*it);
                 }
@@ -228,8 +215,25 @@ void Panel::updateWinList() {
     }
 }
 
+void Panel::updateWinTitles() {
+    for (auto it = winIDs->cbegin(), end = winIDs->cend(); it != end; ++it) {
+        KWindowInfo pIDInfo(*it, NET::WMPid);
+        if (pIDInfo.pid() != panelPID) {
+            QString title = KWindowSystem::readNameProperty(*it, 39);
+            unsigned short sz = title.length();
+            title.truncate(15);
+            if (title.length() < sz) {
+                title += "...";
+            }
+            if (winWidgets[*it]->text() != title) {
+                winWidgets[*it]->setText(title);
+            }
+        }
+    }
+}
+
 void Panel::accentActiveWindow() {
-    WId activeWinID = KX11Extras::activeWindow();
+    WId activeWinID = KWindowSystem::activeWindow();
     foreach (QPushButton* button, winWidgets) {
         button->setStyleSheet("");
     }
@@ -241,7 +245,7 @@ void Panel::accentActiveWindow() {
 
 
 void Panel::updateWorkspaces() {
-    visibleDesktop = KX11Extras::currentDesktop();
+    visibleDesktop = KWindowSystem::currentDesktop();
     for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
         if ((workspace+1) == visibleDesktop) {
             appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
@@ -367,10 +371,18 @@ void Panel::setRepeatingActions() {
             updateWinListTimer->start();
             activeTimers.append(updateWinListTimer);*/
 
-            this->connect(KX11Extras::self(), &KX11Extras::windowAdded, this, &Panel::updateWinList);
-            //this->connect(KX11Extras::self(), &KX11Extras::windowRemoved, this, &Panel::updateWinList);
-            this->connect(KX11Extras::self(), &KX11Extras::windowChanged, this, &Panel::updateWinList);
-            this->connect(KX11Extras::self(), &KX11Extras::activeWindowChanged, this, &Panel::accentActiveWindow);
+            this->connect(KWindowSystem::self(), &KWindowSystem::windowAdded, this, &Panel::updateWinList);
+            //this->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, &Panel::updateWinList);
+            this->connect(KWindowSystem::self(), &KWindowSystem::activeWindowChanged, this, &Panel::accentActiveWindow);
+
+            QTimer* updateTitleTimer = new QTimer(this);
+            updateTitleTimer->setInterval(2000);
+            this->connect(updateTitleTimer, &QTimer::timeout, this, [this](){
+                this->updateWinTitles();
+            });
+            updateTitleTimer->start();
+            activeTimers.append(updateTitleTimer);
+
         }
         else {
             qDebug() << "Window List applet currently works only on X11. Skipping...";
@@ -389,7 +401,7 @@ void Panel::setRepeatingActions() {
         updateWorkspacesTimer->start();
         activeTimers.append(updateWorkspacesTimer);*/
 
-        this->connect(KX11Extras::self(), &KX11Extras::currentDesktopChanged, this, &Panel::updateWorkspaces);
+        this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, &Panel::updateWorkspaces);
     }
 
     // Local IP applet
@@ -585,14 +597,14 @@ void Panel::setPanelUI(QObject* execHolder) {
         }
 
         else if (applet == "workspaces") {
-            qint8 countWorkspaces = KX11Extras::numberOfDesktops();
+            qint8 countWorkspaces = KWindowSystem::numberOfDesktops();
             for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
                 QPushButton* currentWorkspace = new QPushButton(QString::number(workspace+1));
                 currentWorkspace->setMaximumWidth(fm.horizontalAdvance("100"));
                 currentWorkspace->setStyleSheet("background-color: #9a9996; color: #000000;");
                 appletWidgets["workspace" + QString::number(workspace+1)] = currentWorkspace;
 
-                if (KX11Extras::currentDesktop() == workspace+1) {
+                if (KWindowSystem::currentDesktop() == workspace+1) {
                     currentWorkspace->setStyleSheet("background-color: " + accent + "; color: #ffffff;");
                 }
                 this->layout()->addWidget(currentWorkspace);
@@ -755,7 +767,7 @@ void Panel::setPanelUI(QObject* execHolder) {
         }
 
         else if (applet == "windowlist") {
-            this->connect(KX11Extras::self(), &KX11Extras::windowRemoved, this, []() {
+            this->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, []() {
                 WindowList::getWinList(winIDs);
                 QList<WId> keys = winWidgets.keys();
                 foreach (WId id, keys) {
@@ -774,7 +786,7 @@ void Panel::setPanelUI(QObject* execHolder) {
             for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
                 this->connect(static_cast<QPushButton*>(appletWidgets["workspace" + QString::number(workspace+1)]),
                         &QPushButton::clicked, this, [workspace]() {
-                    KX11Extras::setCurrentDesktop(workspace+1);
+                    KWindowSystem::setCurrentDesktop(workspace+1);
                 });
             }
         }
@@ -976,7 +988,6 @@ void Panel::testpoint(QObject* parent, QJsonObject* config) {
     // config is ~/.config/plainDE/config.json
 
     // here you can put your code to test
-
 }
 
 Panel::Panel(QWidget* parent,

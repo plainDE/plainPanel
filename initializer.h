@@ -3,7 +3,7 @@
 
 #include <QWidget>
 #include <QDBusAbstractAdaptor>
-#include <KX11Extras>
+#include <KWindowSystem>
 
 class Initializer : public QObject {
     Q_CLASSINFO("D-Bus Interface", "org.plainDE.actions");
