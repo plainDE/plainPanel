@@ -206,7 +206,19 @@ void Panel::updateWinList() {
                 });
             }
             else {
-                if (!desktopInfo.isOnCurrentDesktop()) {
+                if (desktopInfo.isOnCurrentDesktop()) {
+                    KWindowInfo nameInfo(*it, NET::WMName);
+                    QString newName = nameInfo.name();;
+                    unsigned short sz = newName.length();
+                    newName.truncate(15);
+                    if (newName.length() < sz) {
+                        newName += "...";
+                    }
+                    if (winWidgets[*it]->text() != newName) {
+                        winWidgets[*it]->setText(newName);
+                    }
+                }
+                else {
                     delete winWidgets[*it];
                     winWidgets.remove(*it);
                 }
@@ -219,14 +231,16 @@ void Panel::updateWinTitles() {
     for (auto it = winIDs->cbegin(), end = winIDs->cend(); it != end; ++it) {
         KWindowInfo pIDInfo(*it, NET::WMPid);
         if (pIDInfo.pid() != panelPID) {
-            QString title = KWindowSystem::readNameProperty(*it, 39);
-            unsigned short sz = title.length();
-            title.truncate(15);
-            if (title.length() < sz) {
-                title += "...";
-            }
-            if (winWidgets[*it]->text() != title) {
-                winWidgets[*it]->setText(title);
+            if (winWidgets.contains(*it)) {
+                QString title = KWindowSystem::readNameProperty(*it, 39);
+                unsigned short sz = title.length();
+                title.truncate(15);
+                if (title.length() < sz) {
+                    title += "...";
+                }
+                if (winWidgets[*it]->text() != title) {
+                    winWidgets[*it]->setText(title);
+                }
             }
         }
     }
@@ -245,6 +259,7 @@ void Panel::accentActiveWindow() {
 
 
 void Panel::updateWorkspaces() {
+    this->updateWinList();
     visibleDesktop = KWindowSystem::currentDesktop();
     for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
         if ((workspace+1) == visibleDesktop) {
@@ -363,16 +378,7 @@ void Panel::setRepeatingActions() {
     // Window list applet
     if (activeAppletsList.contains("windowlist")) {
         if (!QString::compare(getenv("XDG_SESSION_TYPE"), "x11", Qt::CaseInsensitive)) {
-            /* QTimer* updateWinListTimer = new QTimer(this);
-            updateWinListTimer->setInterval(400);
-            this->connect(updateWinListTimer, &QTimer::timeout, this, [this]() {
-                this->updateWinList();
-            });
-            updateWinListTimer->start();
-            activeTimers.append(updateWinListTimer);*/
-
             this->connect(KWindowSystem::self(), &KWindowSystem::windowAdded, this, &Panel::updateWinList);
-            //this->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, &Panel::updateWinList);
             this->connect(KWindowSystem::self(), &KWindowSystem::activeWindowChanged, this, &Panel::accentActiveWindow);
 
             QTimer* updateTitleTimer = new QTimer(this);
@@ -382,7 +388,6 @@ void Panel::setRepeatingActions() {
             });
             updateTitleTimer->start();
             activeTimers.append(updateTitleTimer);
-
         }
         else {
             qDebug() << "Window List applet currently works only on X11. Skipping...";
@@ -401,7 +406,10 @@ void Panel::setRepeatingActions() {
         updateWorkspacesTimer->start();
         activeTimers.append(updateWorkspacesTimer);*/
 
-        this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, &Panel::updateWorkspaces);
+        this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, [this]() {
+            qDebug() << "WORKSPACE";
+            this->updateWorkspaces();
+        });
     }
 
     // Local IP applet
