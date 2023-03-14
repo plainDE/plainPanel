@@ -29,15 +29,7 @@
   <code>git</code>, <code>qt6-base</code>, <code>xorg</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>, <code>python3</code>, <code>picom</code>, <code>upower</code>
   
   <h2>Installation</h2>
-  You can either use <a href="https://github.com/plainDE/plainInstaller">plainInstaller</a>, a script that will download, compile and install everything automatically, or install plainPanel only.<br><br>
-  
-  <div align="left">
-    1. <code>git clone https://github.com/plainDE/plainPanel && cd plainPanel</code><br>
-    2. <code>qmake</code><br>
-    3. <code>make</code><br>
-    4. <code>sudo mkdir /usr/share/plainDE && sudo cp ./plainPanel /usr/share/plainDE/</code><br>
-    5. <code>sudo cp readme-icon.png /usr/share/plainDE/menuIcon.png</code>
-  </div><br>
+  Use <a href="https://github.com/plainDE/plainInstaller">plainInstaller</a>, a script that will download, compile and install everything automatically.<br><br>
   
   Now add <code>plainPanel</code> to OpenBox/FluxBox/... autostart and enjoy!
   
