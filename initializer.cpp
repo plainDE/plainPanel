@@ -79,13 +79,15 @@ void Initializer::reconfigurePanel() {
     panels.clear();
     panelIDs.clear();
     for (int i = 1; i <= initConfig["countPanels"].toInt(); ++i) {
-        Panel* panel = new Panel(this,
-                                 &initConfig,
-                                 i,
-                                 mApp,
-                                 &panels);
-        panels.append(panel);
-        panelIDs.append(panel->winId());
+        if (!initConfig["panel" + QString::number(i)].isNull()) {
+            Panel* panel = new Panel(this,
+                                     &initConfig,
+                                     i,
+                                     mApp,
+                                     &panels);
+            panels.append(panel);
+            panelIDs.append(panel->winId());
+        }
     }
 
     // Moving panel on other workspaces - Bugfix #3
@@ -113,13 +115,15 @@ Initializer::Initializer(QApplication* app) {
     panelIDs.clear();
 
     for (int i = 1; i <= initConfig["countPanels"].toInt(); ++i) {
-        Panel* panel = new Panel(this,
-                                 &initConfig,
-                                 i,
-                                 mApp,
-                                 &panels);
-        panels.append(panel);
-        panelIDs.append(panel->winId());
+        if (!initConfig["panel" + QString::number(i)].isNull()) {
+            Panel* panel = new Panel(this,
+                                     &initConfig,
+                                     i,
+                                     mApp,
+                                     &panels);
+            panels.append(panel);
+            panelIDs.append(panel->winId());
+        }
     }
 
 
