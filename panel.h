@@ -72,7 +72,7 @@ public:
           QJsonObject* config = nullptr,
           int id = 0,
           QApplication* app = nullptr,
-          QList<Panel*>* prevPanels = nullptr);
+          QList<Panel*> prevPanels = {});
     void animation(AnimationType type);
     void updateWinList();           // Window List applet
     void updateWinList(bool);       // Window List applet (without titles, for vertical panel)
@@ -104,7 +104,7 @@ private:
 
     QScreen* mPrimaryScreen;
     int mScreenWidth, mScreenHeight;
-    QList<Panel*>* mPrevPanels;
+    QList<Panel*> mPrevPanels;
 
     int mPanelThickness;
     PanelLayout mPanelLayout;

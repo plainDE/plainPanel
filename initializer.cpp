@@ -84,7 +84,7 @@ void Initializer::reconfigurePanel() {
                                      &initConfig,
                                      i,
                                      mApp,
-                                     &panels);
+                                     panels);
             panels.append(panel);
             panelIDs.append(panel->winId());
         }
@@ -120,7 +120,7 @@ Initializer::Initializer(QApplication* app) {
                                      &initConfig,
                                      i,
                                      mApp,
-                                     &panels);
+                                     panels);
             panels.append(panel);
             panelIDs.append(panel->winId());
         }

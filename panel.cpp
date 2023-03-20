@@ -193,8 +193,8 @@ void Panel::setPanelGeometry() {
     }
 
     // Avoiding interference of two panels (i.e., left and top)
-    for (int i = 0; i < mPrevPanels->length(); ++i) {
-        Panel* prevPanel = mPrevPanels->at(i);
+    for (int i = 0; i < mPrevPanels.length(); ++i) {
+        Panel* prevPanel = mPrevPanels.at(i);
         PanelInterference interference = checkPanelsInterference(prevPanel->mPanelLocation,
                                                                  this->mPanelLocation);
         switch (interference) {
@@ -1336,7 +1336,7 @@ Panel::Panel(QObject* parent,
              QJsonObject* config ,
              int id,
              QApplication* app,
-             QList<Panel*>* prevPanels): QWidget(nullptr) {
+             QList<Panel*> prevPanels): QWidget(nullptr) {
     mApplication = app;
     mConfig = config;
     mPanelWId = this->winId();
