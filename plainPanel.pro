@@ -1,4 +1,4 @@
-QT       += core gui network KWindowSystem
+QT       += core gui network KWindowSystem concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets dbus
 
@@ -15,13 +15,14 @@ INCLUDEPATH += /usr/include/KF5/KWindowSystem
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    applet.cpp \
     applets/appmenu/appmenu.cpp \
     applets/battery/battery.cpp \
     applets/datetime/datetime.cpp \
     applets/kblayout/kblayout.cpp \
     applets/localipv4/localipv4.cpp \
     applets/mpris/mpris.cpp \
+    applets/snitray/snitray.cpp \
+    applets/snitray/statusnotifierwatcher.cpp \
     applets/usermenu/usermenu.cpp \
     applets/volume/volume.cpp \
     applets/windowlist/windowlist.cpp \
@@ -32,13 +33,14 @@ SOURCES += \
     panel.cpp
 
 HEADERS += \
-    applet.h \
     applets/appmenu/appmenu.h \
     applets/battery/battery.h \
     applets/datetime/datetime.h \
     applets/kblayout/kblayout.h \
     applets/localipv4/localipv4.h \
     applets/mpris/mpris.h \
+    applets/snitray/snitray.h \
+    applets/snitray/statusnotifierwatcher.h \
     applets/usermenu/usermenu.h \
     applets/volume/volume.h \
     applets/windowlist/windowlist.h \
@@ -57,5 +59,3 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 DISTFILES += \
     devnotes.txt
-
-FORMS +=

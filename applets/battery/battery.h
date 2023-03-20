@@ -1,7 +1,8 @@
 #ifndef BATTERY_H
 #define BATTERY_H
 
-#include "../../applet.h"
+#include <QString>
+#include <QDir>
 
 struct Battery {
     qint8 percentage;

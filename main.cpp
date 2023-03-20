@@ -15,7 +15,7 @@ int main(int argc, char *argv[]) {
         exit(0);
     }
 
-    Initializer* init = new Initializer();
+    Initializer* init = new Initializer(&a);
 
     a.exec();
 }

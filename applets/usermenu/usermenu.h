@@ -1,32 +1,44 @@
-#include <QProcess>
-
-#include "../../applet.h"
-#include "../../panel.h"
-
 #ifndef USERMENU_H
 #define USERMENU_H
 
-struct userMenuUI {
-    QWidget* userMenuWidget;
-    QPushButton* settingsEntry;
-    QPushButton* aboutEntry;
-    QPushButton* logOutEntry;
-    QPushButton* powerOffEntry;
-    QPushButton* rebootEntry;
-};
+#include <QWidget>
+#include <QMessageBox>
+#include <QPushButton>
+#include <QProcess>
+#include <QFile>
 
-class UserMenuApplet {
+#include "../../panel.h"
+
+class UserMenu : public QWidget {
+    Q_OBJECT
+
 public:
-    userMenuUI __createUI__(QObject* parent,
-                            PanelLocation location,
-                            short panelHeight,
-                            QFont font,
-                            short buttonX,
-                            short buttonXRight,
-                            QString theme,
-                            qreal opacity);
-    void about();
-    void settings();
+    void createUI(Panel* parentPanel,
+                  QObject* execHolder,
+                  PanelLocation panelLocation,
+                  int panelThickness,
+                  int screenWidth,
+                  int screenHeight,
+                  QFont font,
+                  int buttonCoord1,
+                  int buttonCoord2,
+                  QString stylesheet,
+                  double opacity);
+    UserMenu(Panel* parentPanel,
+             QObject* execHolder,
+             PanelLocation panelLocation,
+             int panelThickness,
+             int screenWidth,
+             int screenHeight,
+             QFont font,
+             int buttonCoord1,
+             int buttonCoord2,
+             QString stylesheet,
+             double opacity);
+    ~UserMenu();
+
+signals:
+    void panelShouldQuit();
 };
 
 #endif // USERMENU_H

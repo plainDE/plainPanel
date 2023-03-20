@@ -1,4 +1,3 @@
-#include "../../applet.h"
 #include <QProcess>
 
 #ifndef VOLUME_H

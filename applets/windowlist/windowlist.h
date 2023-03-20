@@ -1,4 +1,3 @@
-#include "../../applet.h"
 #include "../../panel.h"
 
 #include <KWindowSystem>

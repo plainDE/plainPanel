@@ -1,168 +1,211 @@
 #include "usermenu.h"
 
-#include <QDebug>
-
-userMenuUI UserMenuApplet::__createUI__(QObject* parent, PanelLocation location, short panelHeight,
-                                        QFont font, short buttonX, short buttonXRight, QString theme,
-                                        qreal opacity) {
-    QWidget* userMenuWidget = new QWidget;
-    userMenuWidget->setObjectName("userMenu");
-    QFontMetrics fm(font);
+void UserMenu::createUI(Panel* parentPanel,
+                        QObject* execHolder,
+                        PanelLocation panelLocation,
+                        int panelThickness,
+                        int screenWidth,
+                        int screenHeight,
+                        QFont font,
+                        int buttonCoord1,
+                        int buttonCoord2,
+                        QString stylesheet,
+                        double opacity) {
+    this->setObjectName("userMenu");
 
     // Window flags
-    userMenuWidget->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint |
-                                   Qt::X11BypassWindowManagerHint);
+    this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    QFontMetrics fm(font);
 
     // Geometry
-    QScreen* primaryScreen = QGuiApplication::primaryScreen();
+    int width = fm.horizontalAdvance("About plainDE") + 25;
+    int height = 150;
+    int ax = 0, ay = 0;
+    switch (panelLocation) {
+        case Top:
+            ax = (screenWidth - buttonCoord1 >= width) ? buttonCoord1 : buttonCoord2 - width;
+            ay = panelThickness + 5;
+        break;
 
-    short userMenuWidth = fm.horizontalAdvance("About plainDE") + 20;
-    short userMenuHeight = 150;
-    short ax = 0, ay = 0;
-    if (location == top) {
-        ay = panelHeight + 5;
+        case Bottom:
+            ax = (screenWidth - buttonCoord1 >= width) ? buttonCoord1 : buttonCoord2 - width;
+            ay = screenHeight - panelThickness - height - 5;
+        break;
+
+        case Left:
+            ax = panelThickness + 5;
+            ay = (screenHeight - buttonCoord1 >= height) ? buttonCoord1 : buttonCoord2 - height;
+        break;
+
+        case Right:
+            ax = screenWidth - panelThickness - width - 5;
+            ay = (screenHeight - buttonCoord1 >= height) ? buttonCoord1 : buttonCoord2 - height;
+        break;
     }
-    else {
-        ay = primaryScreen->geometry().height() - panelHeight - userMenuHeight - 5;
-    }
-    if (primaryScreen->geometry().width() - buttonX >= userMenuWidth) {
-        ax = buttonX;
-    }
-    else {
-        ax = buttonXRight - userMenuWidth;
-    }
-    userMenuWidget->setFixedSize(userMenuWidth, userMenuHeight);
-    userMenuWidget->move(ax, ay);
+    this->setFixedSize(width, height);
+    this->move(ax, ay);
+
+
+    // Font
+    this->setFont(font);
 
     // Theme
-    QFile stylesheetReader("/usr/share/plainDE/styles/" + theme);
+    QFile stylesheetReader("/usr/share/plainDE/styles/" + stylesheet);
     stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
     QTextStream styleSheet(&stylesheetReader);
-    userMenuWidget->setStyleSheet(styleSheet.readAll() + "QPushButton { text-align: left; }");
+    this->setStyleSheet(styleSheet.readAll() + "QPushButton { text-align: left; }");
 
     // Opacity
-    userMenuWidget->setWindowOpacity(opacity);
+    this->setWindowOpacity(opacity);
 
-    // Set font
-    userMenuWidget->setFont(font);
-
-    // UI
-    QVBoxLayout* userMenuLayout = new QVBoxLayout;
+    QVBoxLayout *userMenuLayout = new QVBoxLayout(this);
     userMenuLayout->setContentsMargins(1, 1, 1, 1);
-    userMenuWidget->setLayout(userMenuLayout);
 
-    QPushButton* settingsEntry = new QPushButton;
+    QPushButton *settingsEntry = new QPushButton();
     settingsEntry->setFlat(true);
-    settingsEntry->setText("Settings");
+    settingsEntry->setText(tr("Settings"));
     settingsEntry->setIcon(QIcon::fromTheme("preferences-system"));
     settingsEntry->setFont(font);
-    userMenuWidget->layout()->addWidget(settingsEntry);
+    userMenuLayout->addWidget(settingsEntry);
 
-    QPushButton* aboutEntry = new QPushButton;
+    QPushButton *aboutEntry = new QPushButton();
     aboutEntry->setFlat(true);
-    aboutEntry->setText("About plainDE");
+    aboutEntry->setText(tr("About plainDE"));
     aboutEntry->setIcon(QIcon::fromTheme("help-about"));
     aboutEntry->setFont(font);
-    userMenuWidget->layout()->addWidget(aboutEntry);
+    userMenuLayout->addWidget(aboutEntry);
 
-    QPushButton* logOutEntry = new QPushButton;
+    QPushButton *logOutEntry = new QPushButton();
     logOutEntry->setFlat(true);
-    logOutEntry->setText("Log Out");
+    logOutEntry->setText(tr("Log Out"));
     logOutEntry->setIcon(QIcon::fromTheme("system-log-out"));
     logOutEntry->setFont(font);
-    userMenuWidget->layout()->addWidget(logOutEntry);
+    userMenuLayout->addWidget(logOutEntry);
 
-    QPushButton* suspendEntry = new QPushButton;
+    QPushButton *suspendEntry = new QPushButton();
     suspendEntry->setFlat(true);
-    suspendEntry->setText("Suspend");
+    suspendEntry->setText(tr("Suspend"));
     suspendEntry->setIcon(QIcon::fromTheme("system-suspend"));
     suspendEntry->setFont(font);
-    userMenuWidget->layout()->addWidget(suspendEntry);
+    userMenuLayout->addWidget(suspendEntry);
 
-    QPushButton* rebootEntry = new QPushButton;
+    QPushButton* rebootEntry = new QPushButton();
     rebootEntry->setFlat(true);
     rebootEntry->setText("Reboot");
     rebootEntry->setIcon(QIcon::fromTheme("system-reboot"));
     rebootEntry->setFont(font);
-    userMenuWidget->layout()->addWidget(rebootEntry);
+    userMenuLayout->addWidget(rebootEntry);
 
-    QPushButton* powerOffEntry = new QPushButton;
+    QPushButton* powerOffEntry = new QPushButton();
     powerOffEntry->setFlat(true);
     powerOffEntry->setText("Power Off");
     powerOffEntry->setIcon(QIcon::fromTheme("system-shutdown"));
     powerOffEntry->setFont(font);
-    userMenuWidget->layout()->addWidget(powerOffEntry);
-
+    userMenuLayout->addWidget(powerOffEntry);
 
     // Make connections
-    userMenuWidget->connect(powerOffEntry, &QPushButton::clicked, userMenuWidget,
-                            [userMenuWidget]() {
-        userMenuWidget->hide();
+    this->connect(powerOffEntry, &QPushButton::clicked, this,
+                            [this, parentPanel]() {
+        this->hide();
 
-        QMessageBox powerOffMsg;
+        QMessageBox powerOffMsg(this);
         powerOffMsg.setWindowTitle("Power Off");
         powerOffMsg.setText("Are you sure you want to shut down your system?");
         powerOffMsg.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
         powerOffMsg.setIcon(QMessageBox::Question);
 
+
+
         if (powerOffMsg.exec() == QMessageBox::Yes) {
-            system("systemctl poweroff");
+            emit panelShouldQuit();
+            this->connect(parentPanel, &Panel::animationFinished, this, [](){
+                system("systemctl poweroff");
+            });
         }
     });
 
-    userMenuWidget->connect(rebootEntry, &QPushButton::clicked, userMenuWidget,
-                            [userMenuWidget]() {
-        userMenuWidget->hide();
+    this->connect(rebootEntry, &QPushButton::clicked, this,
+                            [this, parentPanel]() {
+        this->hide();
 
-        QMessageBox powerOffMsg;
+        QMessageBox powerOffMsg(this);
         powerOffMsg.setWindowTitle("Reboot");
         powerOffMsg.setText("Are you sure you want to reboot your system?");
         powerOffMsg.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
         powerOffMsg.setIcon(QMessageBox::Question);
 
         if (powerOffMsg.exec() == QMessageBox::Yes) {
-            system("systemctl reboot");
+            emit panelShouldQuit();
+            this->connect(parentPanel, &Panel::animationFinished, this, [](){
+                system("systemctl reboot");
+            });
         }
     });
 
-    userMenuWidget->connect(logOutEntry, &QPushButton::clicked, userMenuWidget,
-                            [userMenuWidget]() {
-        userMenuWidget->hide();
-
-        QMessageBox powerOffMsg;
+    this->connect(logOutEntry, &QPushButton::clicked, this,
+                            [this, parentPanel]() {
+        this->hide();
+        QMessageBox powerOffMsg(this);
         powerOffMsg.setWindowTitle("Log Out");
         powerOffMsg.setText("Are you sure you want to log out?");
         powerOffMsg.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
         powerOffMsg.setIcon(QMessageBox::Question);
 
         if (powerOffMsg.exec() == QMessageBox::Yes) {
-            system("loginctl kill-user $USER");
+            emit panelShouldQuit();
+            this->connect(parentPanel, &Panel::animationFinished, this, [](){
+                system("loginctl kill-user $USER");
+            });
         }
     });
 
-    userMenuWidget->connect(suspendEntry, &QPushButton::clicked, userMenuWidget,
-                            [userMenuWidget]() {
-        userMenuWidget->hide();
+    this->connect(suspendEntry, &QPushButton::clicked, this,
+                            [this]() {
+        this->hide();
         system("systemctl suspend");
     });
 
-    userMenuWidget->connect(settingsEntry, &QPushButton::clicked, userMenuWidget,
-                            [parent, userMenuWidget]() {
-        userMenuWidget->hide();
+    this->connect(settingsEntry, &QPushButton::clicked, this,
+                            [execHolder, this]() {
+        this->hide();
 
-        QProcess* process = new QProcess(parent);
+        QProcess* process = new QProcess(execHolder);
         process->start("plainControlCenter");
     });
 
-    userMenuWidget->connect(aboutEntry, &QPushButton::clicked, userMenuWidget,
-                            [parent, userMenuWidget]() {
-        userMenuWidget->hide();
+    this->connect(aboutEntry, &QPushButton::clicked, this,
+                            [execHolder, this]() {
+        this->hide();
 
-        QProcess* process = new QProcess(parent);
+        QProcess* process = new QProcess(execHolder);
         process->start("plainAbout --plainPanel");
     });
-
-
-    return {userMenuWidget, settingsEntry, aboutEntry, logOutEntry, powerOffEntry, rebootEntry};
 }
 
+UserMenu::UserMenu(Panel* parentPanel,
+                   QObject* execHolder,
+                   PanelLocation panelLocation,
+                   int panelThickness,
+                   int screenWidth,
+                   int screenHeight,
+                   QFont font,
+                   int buttonCoord1,
+                   int buttonCoord2,
+                   QString stylesheet,
+                   double opacity) : QWidget(nullptr) {
+    createUI(parentPanel,
+             execHolder,
+             panelLocation,
+             panelThickness,
+             screenWidth,
+             screenHeight,
+             font,
+             buttonCoord1,
+             buttonCoord2,
+             stylesheet,
+             opacity);
+}
+
+UserMenu::~UserMenu() {
+
+}

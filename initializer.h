@@ -10,12 +10,13 @@ class Initializer : public QObject {
     Q_OBJECT
 
 public:
-    Initializer();
+    Initializer(QApplication* app);
     void readConfig();
     QWidget* newPanel(qint8 number);
     void autostart();
     ~Initializer();
 
+    QApplication* mApp;
 
 public slots:
     void reconfigurePanel();

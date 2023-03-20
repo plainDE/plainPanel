@@ -1,5 +1,6 @@
-#include "../../applet.h"
 #include "../../panel.h"
+
+#include <QCalendarWidget>
 
 #ifndef DATETIME_H
 #define DATETIME_H
@@ -19,21 +20,32 @@ enum Month {
     Dec
 };
 
-struct dateTimeUI {
-    QWidget* calendarWidget;
-};
-
-class DateTimeApplet : public Applet {
+class DateTimeApplet : public QCalendarWidget {
 public:
-    QString __getDisplayedData__(QString timeFormat, QString dateFormat);
+    QString __getDisplayedData__(QString timeFormat, QString dateFormat, PanelLayout panelLayout);
     QString __getDisplayedData__(QString timeFormat);
-    dateTimeUI __createUI__(PanelLocation location, short panelHeight, QFont font,
-                            short buttonX, short buttonXRight, Qt::DayOfWeek firstDay);
+    void createUI(Qt::DayOfWeek firstDay,
+                  PanelLocation panelLocation,
+                  QFont font,
+                  int panelThickness,
+                  int screenWidth,
+                  int screenHeight,
+                  int buttonCoord1,
+                  int buttonCoord2,
+                  double opacity);
 
     QString getCurrentTime(QString timeFormat);
     QString getCurrentDate(QString dateFormat);
-    void createCalendar();
-    void buildCalendar(Month month, QWidget* calendarWidget);
+    DateTimeApplet(Qt::DayOfWeek firstDay,
+                   PanelLocation panelLocation,
+                   QFont font,
+                   int panelThickness,
+                   int screenWidth,
+                   int screenHeight,
+                   int buttonCoord1,
+                   int buttonCoord2,
+                   double opacity);
+    ~DateTimeApplet();
 };
 
 #endif // DATETIME_H

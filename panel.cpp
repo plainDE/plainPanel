@@ -1,20 +1,5 @@
 #include "panel.h"
 
-#include <QFile>
-#include <QJsonObject>
-#include <QJsonDocument>
-#include <QTimer>
-#include <QPropertyAnimation>
-
-#include <QFont>
-#include <QPushButton>
-#include <QLabel>
-#include <QDial>
-#include <QHBoxLayout>
-
-#include <KWindowSystem>
-
-#include "applet.h"
 #include "applets/appmenu/appmenu.h"
 #include "applets/datetime/datetime.h"
 #include "applets/kblayout/kblayout.h"
@@ -24,184 +9,295 @@
 #include "applets/localipv4/localipv4.h"
 #include "applets/mpris/mpris.h"
 #include "applets/battery/battery.h"
+#include "applets/snitray/snitray.h"
 
 
-QJsonObject* globalConfig;
+AppMenu* mAppMenu;
 
-QMap<QString,QWidget*> appletWidgets;
-QList<QLabel*> splitters;
-PanelLocation location;
-QFont panelFont;
-WId panelWinID;
-pid_t panelPID;
-QScreen* primaryScreen;
+QList<WId>* mWinIDs = new QList<WId>;
+QHash<WId,QPushButton*> mWinWidgets;
 
-unsigned short panelHeight, panelWidth;
+DateTimeApplet* mDateTime;
 
-QVariantList activeAppletsList;
-QHash<QString,QString> panelNameByApplet;
-QList<QTimer*> activeTimers;
+KbLayoutApplet mKbLayout;
 
-AppMenu* menu;
-menuUI _menuUI;
+UserMenu* mUserMenu;
 
-QHBoxLayout* windowListLayout;
-QList<WId>* winIDs = new QList<WId>;
-QHash<WId,QPushButton*> winWidgets;
-unsigned short minWidth;
+LocalIPv4Applet mIPv4Applet;
 
-DateTimeApplet _dateTime;
-dateTimeUI _dateTimeUI;
-QString timeFormat, dateFormat;
+MPRISApplet* mMprisApplet;
 
-KbLayoutApplet _kbLayout;
-
-UserMenuApplet _userMenu;
-userMenuUI _userMenuUI;
-
-LocalIPv4Applet ipv4Applet;
-QString ipIfname;
-
-MPRISApplet* mprisApplet;
-QWidget* mprisWidget;
-
-BatteryApplet* batteryApplet;
-QString batteryName;
-Battery lastBatteryState;
-Battery batteryState;
-qint8 batteryIconSize;
+BatteryApplet* mBatteryApplet;
+Battery mLastBatteryState;
+Battery mBatteryState;
 
 qint8 visibleDesktop;
 qint8 countWorkspaces;
 
-QString accent;
+SNITray* sniTray;
+QDBusMessage msg;
+QDBusConnection panelSessionBus = QDBusConnection::sessionBus();
 
-QString panelName;
 
-
-QJsonValue Panel::getConfigValueFromSection(QJsonObject* _config, QString section, QString key) {
-    return _config->value(section).toObject()[key];
+QJsonValue Panel::getConfigValue(QString key) {
+    return mConfig->value(key);
 }
 
-void Panel::basicInit(QJsonObject* config, qint8 number) {
-    this->setWindowTitle("plainPanel");
-    this->setObjectName("panel");
-
-    QDir::setCurrent(getenv("HOME"));
-
-    panelWinID = this->winId();
-    KWindowInfo pIDInfo(panelWinID, NET::WMPid);
-    panelPID = pIDInfo.pid();
-
-    visibleDesktop = KWindowSystem::currentDesktop();
-    countWorkspaces = KWindowSystem::numberOfDesktops();
-
-    primaryScreen = QGuiApplication::primaryScreen();
-
-    panelName = "panel" + QString::number(number);
-    globalConfig = config;
+QJsonValue Panel::getConfigValue(QString section, QString key) {
+    return mConfig->value(section).toObject()[key];
 }
 
-void Panel::setPanelGeometry() {
-    // size, location, monitor settings, window flags
-
-    // Get screens
-    //QList<QScreen*> screensList = QGuiApplication::screens();
-    // QGuiApplication::primaryScreen()->name();
-
-    // Size & location
-    unsigned short ax = 0, ay = 0;
-    panelWidth = primaryScreen->size().width();
-    panelHeight = getConfigValueFromSection(globalConfig, panelName, "height").toInt();
-    qint8 topStrut = panelHeight, bottomStrut = 0;
-
-    if (getConfigValueFromSection(globalConfig, panelName, "location").toString() == "bottom") {
-        ay = primaryScreen->size().height() - panelHeight;
-        topStrut = 0;
-        bottomStrut = panelHeight;
-    }
-
-    this->setFixedHeight(panelHeight);
-    this->setMaximumWidth(panelWidth);
-    if (getConfigValueFromSection(globalConfig, panelName, "expand").toBool()) {
-        this->setFixedWidth(panelWidth);
-    }
-    else {
-        ax = getConfigValueFromSection(globalConfig, panelName, "xOffset").toInt();
-    }
-
-    qDebug() << "Coordinates: " << ax << " " << ay;
-    this->move(ax, ay);
-
-    // _NET_WM_STRUT - Bugfix #4
-    KWindowSystem::setStrut(panelWinID, 0, 0, topStrut, bottomStrut);
-
-    // Flags
+void Panel::setPanelFlags() {
     this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     this->setAttribute(Qt::WA_X11NetWmWindowTypeDock);
 }
 
-void Panel::updateGeometry() {
-    panelWidth = primaryScreen->size().width();
+PanelInterference Panel::checkPanelsInterference(PanelLocation loc1, PanelLocation loc2) {
+    if (loc1 != loc2) {
+        if (loc1 == Top) {
+            if (loc2 == Left)
+                return TopAndLeft;
+            else if (loc2 == Right)
+                return TopAndRight;
+            else
+                return None;
+        }
 
-    // panel is not expanded
-    this->setGeometry(this->geometry().x(),
-                      this->geometry().y(),
-                      minWidth,
-                      panelHeight);
+        else if (loc1 == Bottom) {
+            if (loc2 == Left)
+                return BottomAndLeft;
+            else if (loc2 == Right)
+                return BottomAndRight;
+            else
+                return None;
+        }
+
+        else if (loc1 == Left) {
+            if (loc2 == Top)
+                return LeftAndTop;
+            else if (loc2 == Bottom)
+                return LeftAndBottom;
+            else
+                return None;
+        }
+
+        else { // Right
+            if (loc2 == Top)
+                return RightAndTop;
+            else if (loc2 == Bottom)
+                return RightAndBottom;
+            else
+                return None;
+        }
+    }
+    else {
+        return Match;
+    }
+}
+
+void Panel::setPanelGeometry() {
+    // Get primary screen dimensions
+    mPrimaryScreen = QGuiApplication::primaryScreen();
+    mScreenWidth = mPrimaryScreen->size().width();
+    mScreenHeight = mPrimaryScreen->size().height();
+
+    // Panel should update geometry when primary screen resolution is changed
+    this->connect(mPrimaryScreen, &QScreen::virtualGeometryChanged, this, [this]() {
+        qDebug() << "Screen resolution changed.";
+        setPanelGeometry();
+    });
+
+    this->connect(mPrimaryScreen, &QScreen::orientationChanged, this, [this]() {
+        qDebug() << "Screen resolution changed.";
+        setPanelGeometry();
+    });
+
+    /* Getting panel thickness
+     * Height - horizontal panel
+     * Width - vertical panel */
+    mPanelThickness = getConfigValue(mPanelName, "thickness").toInt();
+
+    // Location, Layout & Strut
+    int ax = 0, ay = 0;
+    QString loc = getConfigValue(mPanelName, "location").toString();
+    mAxisShift = getConfigValue(mPanelName, "shift").toInt();
+    int topStrut = 0, bottomStrut = 0, leftStrut = 0, rightStrut = 0;
+
+    if (loc == "top") {
+        mPanelLocation = Top;
+        mPanelLayout = Horizontal;
+        if (mAxisShift != 0) {
+            ax = mAxisShift;
+        }
+
+        // This will not work if we have other screen on top of primary screen
+        topStrut = mPanelThickness;
+    }
+    else if (loc == "bottom") {
+        mPanelLocation = Bottom;
+        mPanelLayout = Horizontal;
+        ay = mScreenHeight - mPanelThickness;
+        if (mAxisShift != 0) {
+            ax = mAxisShift;
+        }
+
+        // This will not work if we have other screen on bottom of primary screen
+        bottomStrut = mPanelThickness;
+    }
+    else if (loc == "left") {
+        mPanelLocation = Left;
+        mPanelLayout = Vertical;
+        if (mAxisShift != 0) {
+            ay = mAxisShift;
+        }
+
+        // This will not work if we have other screen on left of primary screen
+        leftStrut = mPanelThickness;
+    }
+    else {
+        mPanelLocation = Right;
+        mPanelLayout = Vertical;
+        ax = mScreenWidth - mPanelThickness;
+        if (mAxisShift != 0) {
+            ay = mAxisShift;
+        }
+
+        // This will not work if we have other screen on right of primary screen
+        rightStrut = mPanelThickness;
+    }
+
+    // Size
+    if (mPanelLayout == Horizontal) {
+        mPanelHeight = mPanelThickness;
+        if (getConfigValue(mPanelName, "expand").toBool()) {
+            mPanelWidth = mScreenWidth;
+        }
+        else {
+            /* User requested not to stretch panel.
+             * We set default panel width to 0, hence it will
+             * adjust its width automatically after adding applets. */
+            mPanelWidth = 0;
+        }
+    }
+    else {
+        mPanelWidth = mPanelThickness;
+        if (getConfigValue(mPanelName, "expand").toBool()) {
+            mPanelHeight = mScreenHeight;
+        }
+        else {
+            /* User requested not to stretch panel.
+             * We set default panel height to 0, hence it will
+             * adjust its height automatically after adding applets. */
+            mPanelHeight = 0;
+        }
+    }
+
+    // Avoiding interference of two panels (i.e., left and top)
+    for (int i = 0; i < mPrevPanels->length(); ++i) {
+        Panel* prevPanel = mPrevPanels->at(i);
+        PanelInterference interference = checkPanelsInterference(prevPanel->mPanelLocation,
+                                                                 this->mPanelLocation);
+        switch (interference) {
+        case TopAndLeft: case TopAndRight:
+            ay += prevPanel->mPanelThickness;
+            mPanelHeight -= prevPanel->mPanelThickness;
+            break;
+        case BottomAndLeft: case BottomAndRight:
+            mPanelHeight -= prevPanel->mPanelThickness;
+            break;
+        case LeftAndTop: case LeftAndBottom:
+            ax += prevPanel->mPanelThickness;
+            mPanelWidth -= prevPanel->mPanelThickness;
+            break;
+        case RightAndTop: case RightAndBottom:
+            mPanelWidth -= prevPanel->mPanelThickness;
+            break;
+        case Match:
+            qDebug() << "Panels" << prevPanel->mPanelName << "and" << this->mPanelName << "coincided.";
+            break;
+        case None:
+            break;
+        }
+    }
+
+    this->setGeometry(ax, ay, mPanelWidth, mPanelHeight);
+    this->move(ax, ay);
+    this->setFixedSize(mPanelWidth, mPanelHeight);
+
+    KWindowSystem::setStrut(mPanelWId,
+                            leftStrut,
+                            rightStrut,
+                            topStrut,
+                            bottomStrut);
+
+    qDebug() << this->geometry().x() << this->geometry().y();
+    qDebug() << ax << ay;
+    qDebug() << mPanelWidth << mPanelHeight;
 }
 
 // Only Time
 void Panel::updateDateTime() {
-    static_cast<QPushButton*>(appletWidgets["dateTimePushButton"])->setText(
-                _dateTime.__getDisplayedData__(timeFormat));
+    static_cast<QPushButton*>(mAppletWidgets["dateTimePushButton"])->setText(
+                mDateTime->__getDisplayedData__(mTimeFormat));
 }
 
 // Date & Time
 void Panel::updateDateTime(bool) {
-    static_cast<QPushButton*>(appletWidgets["dateTimePushButton"])->setText(
-                 _dateTime.__getDisplayedData__(timeFormat, dateFormat));
+    static_cast<QPushButton*>(mAppletWidgets["dateTimePushButton"])->setText(
+                 mDateTime->__getDisplayedData__(mTimeFormat, mDateFormat, mPanelLayout));
 }
 
 // ISO code
 void Panel::updateKbLayout() {
-    static_cast<QPushButton*>(appletWidgets["layoutName"])->setText(
-                _kbLayout.getCurrentKbLayout());
+    static_cast<QPushButton*>(mAppletWidgets["layoutIndicator"])->setText(
+                mKbLayout.getCurrentKbLayout());
 }
 
 // Flag
 void Panel::updateKbLayout(bool) {
-    static_cast<QPushButton*>(appletWidgets["layoutName"])->setIcon(
-                _kbLayout.getCurrentFlag());
+    static_cast<QPushButton*>(mAppletWidgets["layoutIndicator"])->setIcon(
+                mKbLayout.getCurrentFlag());
+}
+
+void Panel::shortenTitle(QString* src, QPushButton* button) {
+    int availableWidth = button->geometry().width() - mPanelThickness - 3;
+    bool cut = false;
+    while (mFontMetrics->horizontalAdvance(*src) > availableWidth) {
+        src->chop(1);
+        cut = true;
+    }
+    if (cut)
+        src->append("...");
 }
 
 void Panel::updateWinList() {
-    WindowList::getWinList(winIDs);
-    for (auto it = winIDs->cbegin(), end = winIDs->cend(); it != end; ++it) {
+    WindowList::getWinList(mWinIDs);
+    for (auto it = mWinIDs->cbegin(), end = mWinIDs->cend(); it != end; ++it) {
         KWindowInfo pIDInfo(*it, NET::WMPid);
-        if (pIDInfo.pid() != panelPID) {
+        if (pIDInfo.pid() != mPanelPID) {
             KWindowInfo desktopInfo(*it, NET::WMDesktop);
-            if (!winWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
+            if (!mWinWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
                 KWindowInfo nameInfo(*it, NET::WMName);
-                QPixmap icon = KWindowSystem::icon(*it, -1, panelHeight, true);
+                QPixmap icon = KWindowSystem::icon(*it, -1, mPanelThickness, true);
                 QString winName = nameInfo.name();
                 unsigned short sz = winName.length();
-                winName.truncate(15);
+                winName.truncate(12);
                 if (winName.length() < sz) {
                     winName += "...";
                 }
-                QPushButton* windowButton = new QPushButton(winName);
+                QPushButton* windowButton = new QPushButton(winName, this);
                 windowButton->setIcon(icon);
-                winWidgets[*it] = windowButton;
-                windowListLayout->addWidget(windowButton);
+                windowButton->setFont(mPanelFont);
+                mWinWidgets[*it] = windowButton;
+                mWindowListLayout->addWidget(windowButton);
 
                 this->connect(windowButton, &QPushButton::clicked, this, [windowButton]() {
-                    KWindowInfo windowInfo(winWidgets.key(windowButton), NET::WMState | NET::XAWMState);
+                    KWindowInfo windowInfo(mWinWidgets.key(windowButton), NET::WMState | NET::XAWMState);
                     if (windowInfo.mappingState() != NET::Visible || windowInfo.isMinimized()) {
-                        KWindowSystem::unminimizeWindow(winWidgets.key(windowButton));
+                        KWindowSystem::unminimizeWindow(mWinWidgets.key(windowButton));
                     }
                     else {
-                        KWindowSystem::minimizeWindow(winWidgets.key(windowButton));
+                        KWindowSystem::minimizeWindow(mWinWidgets.key(windowButton));
                     }
                 });
             }
@@ -210,17 +306,50 @@ void Panel::updateWinList() {
                     KWindowInfo nameInfo(*it, NET::WMName);
                     QString newName = nameInfo.name();;
                     unsigned short sz = newName.length();
-                    newName.truncate(15);
+                    newName.truncate(12);
                     if (newName.length() < sz) {
                         newName += "...";
                     }
-                    if (winWidgets[*it]->text() != newName) {
-                        winWidgets[*it]->setText(newName);
+                    if (mWinWidgets[*it]->text() != newName) {
+                        mWinWidgets[*it]->setText(newName);
                     }
                 }
                 else {
-                    delete winWidgets[*it];
-                    winWidgets.remove(*it);
+                    delete mWinWidgets[*it];
+                    mWinWidgets.remove(*it);
+                }
+            }
+        }
+    }
+}
+
+void Panel::updateWinList(bool) {
+    WindowList::getWinList(mWinIDs);
+    for (auto it = mWinIDs->cbegin(), end = mWinIDs->cend(); it != end; ++it) {
+        KWindowInfo pIDInfo(*it, NET::WMPid);
+        if (pIDInfo.pid() != mPanelPID) {
+            KWindowInfo desktopInfo(*it, NET::WMDesktop);
+            if (!mWinWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
+                QPixmap icon = KWindowSystem::icon(*it, -1, mPanelThickness, true);
+                QPushButton* windowButton = new QPushButton(this);
+                windowButton->setIcon(icon);
+                mWinWidgets[*it] = windowButton;
+                mWindowListLayout->addWidget(windowButton);
+
+                this->connect(windowButton, &QPushButton::clicked, this, [windowButton]() {
+                    KWindowInfo windowInfo(mWinWidgets.key(windowButton), NET::WMState | NET::XAWMState);
+                    if (windowInfo.mappingState() != NET::Visible || windowInfo.isMinimized()) {
+                        KWindowSystem::unminimizeWindow(mWinWidgets.key(windowButton));
+                    }
+                    else {
+                        KWindowSystem::minimizeWindow(mWinWidgets.key(windowButton));
+                    }
+                });
+            }
+            else {
+                if (!desktopInfo.isOnCurrentDesktop()) {
+                    delete mWinWidgets[*it];
+                    mWinWidgets.remove(*it);
                 }
             }
         }
@@ -228,18 +357,18 @@ void Panel::updateWinList() {
 }
 
 void Panel::updateWinTitles() {
-    for (auto it = winIDs->cbegin(), end = winIDs->cend(); it != end; ++it) {
+    for (auto it = mWinIDs->cbegin(), end = mWinIDs->cend(); it != end; ++it) {
         KWindowInfo pIDInfo(*it, NET::WMPid);
-        if (pIDInfo.pid() != panelPID) {
-            if (winWidgets.contains(*it)) {
+        if (pIDInfo.pid() != mPanelPID) {
+            if (mWinWidgets.contains(*it)) {
                 QString title = KWindowSystem::readNameProperty(*it, 39);
                 unsigned short sz = title.length();
-                title.truncate(15);
+                title.truncate(12);
                 if (title.length() < sz) {
                     title += "...";
                 }
-                if (winWidgets[*it]->text() != title) {
-                    winWidgets[*it]->setText(title);
+                if (mWinWidgets[*it]->text() != title) {
+                    mWinWidgets[*it]->setText(title);
                 }
             }
         }
@@ -248,64 +377,85 @@ void Panel::updateWinTitles() {
 
 void Panel::accentActiveWindow() {
     WId activeWinID = KWindowSystem::activeWindow();
-    foreach (QPushButton* button, winWidgets) {
+    foreach (QPushButton* button, mWinWidgets) {
         button->setStyleSheet("");
     }
-    if (activeWinID != 0 && winWidgets.contains(activeWinID)) {
-        winWidgets[activeWinID]->setStyleSheet("background-color: " + accent + "; color: #ffffff;");
+    if (activeWinID != 0 && mWinWidgets.contains(activeWinID)) {
+        mWinWidgets[activeWinID]->setStyleSheet("background-color: " + mAccentColor + "; color: #ffffff;");
     }
 
 }
 
-
 void Panel::updateWorkspaces() {
-    this->updateWinList();
     visibleDesktop = KWindowSystem::currentDesktop();
-    for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
-        if ((workspace+1) == visibleDesktop) {
-            appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
-                        "background-color: " + accent + "; color: #ffffff;");
+    if (mPanelLayout == Horizontal) {
+        for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
+            if ((workspace+1) == visibleDesktop) {
+                mAppletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
+                            "background-color: " + mAccentColor + "; color: #ffffff;");
+            }
+            else {
+                mAppletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
+                            "background-color: #9a9996; color: #000000;");
+            }
         }
-        else {
-            appletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
-                        "background-color: #9a9996; color: #000000;");
-        }
+    }
+    else {
+        static_cast<QPushButton*>(mAppletWidgets["workspace"])->setText(QString::number(visibleDesktop));
     }
 }
 
 void Panel::updateLocalIPv4() {
-    static_cast<QLabel*>(appletWidgets["ipLabel"])->setText(
-        ipv4Applet.getLocalIP(ipIfname)
-    );
+    QString newIP = mIPv4Applet.getLocalIP(mIfname);
+
+    if (newIP != mLastIP) {
+        qDebug() << "NEW IP";
+        qDebug() << newIP;
+        mLastIP = newIP;
+        static_cast<QGraphicsTextItem*>(mOtherItems["ipText"])->setPlainText(newIP);
+        if (mPanelLayout == Horizontal) {
+            short maxWidth = mFontMetrics->horizontalAdvance(newIP);
+            static_cast<QGraphicsView*>(mOtherItems["ipView"])->setMaximumWidth(maxWidth);
+            static_cast<QGraphicsView*>(mOtherItems["ipView"])->setMinimumWidth(maxWidth);
+        }
+        else {
+            short maxHeight = mFontMetrics->horizontalAdvance(newIP);
+            if (mIPAngle == 270) {
+                maxHeight += mFontMetrics->horizontalAdvance("A");
+            }
+            static_cast<QGraphicsView*>(mOtherItems["ipView"])->setMaximumHeight(maxHeight);
+            static_cast<QGraphicsView*>(mOtherItems["ipView"])->setMinimumHeight(maxHeight);
+        }
+    }
 }
 
 void Panel::updateBatteryState() {
-    batteryState = batteryApplet->getBatteryState(batteryName);
+    mBatteryState = mBatteryApplet->getBatteryState(mBatteryName);
 
-    if (batteryState.percentage != lastBatteryState.percentage) {
-        static_cast<QLabel*>(appletWidgets["batteryLabel"])->setText(
-                    QString::number(batteryState.percentage) + "%");
+    if (mBatteryState.percentage != mLastBatteryState.percentage) {
+        static_cast<QLabel*>(mAppletWidgets["batteryLabel"])->setText(
+                    QString::number(mBatteryState.percentage) + "%");
 
     }
-    if (QString::compare(batteryState.iconName, lastBatteryState.iconName)) {
-        static_cast<QLabel*>(appletWidgets["batteryIcon"])->setPixmap(
-                    QIcon("/usr/share/plainDE/icons/" + batteryState.iconName).pixmap(
-                        batteryIconSize, batteryIconSize));
+    if (QString::compare(mBatteryState.iconName, mLastBatteryState.iconName)) {
+        static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->setPixmap(
+                    QIcon("/usr/share/plainDE/icons/" + mBatteryState.iconName).pixmap(
+                        mBatteryIconSize, mBatteryIconSize));
     }
 }
 
 void Panel::updateBatteryStateDark() {
-    batteryState = batteryApplet->getBatteryState(batteryName);
+    mBatteryState = mBatteryApplet->getBatteryState(mBatteryName);
 
-    if (batteryState.percentage != lastBatteryState.percentage) {
-        static_cast<QLabel*>(appletWidgets["batteryLabel"])->setText(
-                    QString::number(batteryState.percentage) + "%");
+    if (mBatteryState.percentage != mLastBatteryState.percentage) {
+        static_cast<QLabel*>(mAppletWidgets["batteryLabel"])->setText(
+                    QString::number(mBatteryState.percentage) + "%");
 
     }
-    if (QString::compare(batteryState.iconName, lastBatteryState.iconName)) {
-        static_cast<QLabel*>(appletWidgets["batteryIcon"])->setPixmap(
-                    QIcon("/usr/share/plainDE/icons/" + batteryState.iconName + "-dark").pixmap(
-                        batteryIconSize, batteryIconSize));
+    if (QString::compare(mBatteryState.iconName, mLastBatteryState.iconName)) {
+        static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->setPixmap(
+                    QIcon("/usr/share/plainDE/icons/" + mBatteryState.iconName + "-dark").pixmap(
+                        mBatteryIconSize, mBatteryIconSize));
     }
 }
 
@@ -314,16 +464,16 @@ void Panel::setRepeatingActions() {
 
     // Date & Time applet
 
-    /* Panel may not start exactly at hh:mm:ss:0000, therefore
+    /* Panel might not start exactly at hh:mm:ss:0000, therefore
      * first update should be earlier. Then we wait 1000 ms between
      * updates. This approach lets us get time more precisely and
      * save resources. */
 
-    if (activeAppletsList.contains("datetime")) {        
+    if (mActiveAppletsList.contains("datetime")) {
         QTimer* updateDateTimeTimer = new QTimer(this);
         updateDateTimeTimer->setInterval(1000);
         updateDateTimeTimer->setTimerType(Qt::PreciseTimer);
-        if (globalConfig->value("showDate").toBool()) {
+        if (getConfigValue("showDate").toBool()) {
             this->connect(updateDateTimeTimer, &QTimer::timeout, this, [this]() {
                 this->updateDateTime(true);
             });
@@ -337,7 +487,7 @@ void Panel::setRepeatingActions() {
         // https://github.com/lxqt/lxqt-panel/blob/master/plugin-worldclock/lxqtworldclock.cpp
         unsigned short delay = 1000 - ((QTime::currentTime().msecsSinceStartOfDay()) % 1000);
         QTimer::singleShot(delay, Qt::PreciseTimer, this, [this]() {
-            if (globalConfig->value("showDate").toBool()) {
+            if (getConfigValue("showDate").toBool()) {
                 this->updateDateTime(true);
             }
             else {
@@ -346,17 +496,17 @@ void Panel::setRepeatingActions() {
         });
         QTimer::singleShot(delay, Qt::PreciseTimer, updateDateTimeTimer, SLOT(start()));
 
-        activeTimers.append(updateDateTimeTimer);
+        mActiveTimers.append(updateDateTimeTimer);
     }
 
 
     // Keyboard layout applet
-    if (activeAppletsList.contains("kblayout")) {
+    if (mActiveAppletsList.contains("kblayout")) {
         if (!QString::compare(getenv("XDG_SESSION_TYPE"), "x11", Qt::CaseInsensitive)) {
             QTimer* updateKbLayoutTimer = new QTimer(this);
             updateKbLayoutTimer->setInterval(350);
 
-            if (globalConfig->value("useCountryFlag").toBool()) {
+            if (getConfigValue("useCountryFlag").toBool()) {
                 this->connect(updateKbLayoutTimer, &QTimer::timeout, this, [this]() {
                     this->updateKbLayout(true);
                 });
@@ -367,7 +517,7 @@ void Panel::setRepeatingActions() {
                 });
             }
             updateKbLayoutTimer->start();
-            activeTimers.append(updateKbLayoutTimer);
+            mActiveTimers.append(updateKbLayoutTimer);
         }
         else {
             qDebug() << "Keyboard Layout applet currently works only on X11. Skipping...";
@@ -376,18 +526,39 @@ void Panel::setRepeatingActions() {
 
 
     // Window list applet
-    if (activeAppletsList.contains("windowlist")) {
+    if (mActiveAppletsList.contains("windowlist")) {
         if (!QString::compare(getenv("XDG_SESSION_TYPE"), "x11", Qt::CaseInsensitive)) {
-            this->connect(KWindowSystem::self(), &KWindowSystem::windowAdded, this, &Panel::updateWinList);
+            if (mPanelLayout == Horizontal) {
+                this->connect(KWindowSystem::self(), &KWindowSystem::windowAdded, this, [this]() {
+                    updateWinList();
+                });
+            }
+            else {
+                this->connect(KWindowSystem::self(), &KWindowSystem::windowAdded, this, [this]() {
+                    updateWinList(false);
+                });
+            }
             this->connect(KWindowSystem::self(), &KWindowSystem::activeWindowChanged, this, &Panel::accentActiveWindow);
 
+            if (mPanelLayout == Horizontal) {
+                this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, [this]() {
+                    this->updateWinList();
+                });
+            }
+            else {
+                this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, [this]() {
+                    this->updateWinList(false);
+                });
+            }
             QTimer* updateTitleTimer = new QTimer(this);
-            updateTitleTimer->setInterval(2000);
-            this->connect(updateTitleTimer, &QTimer::timeout, this, [this](){
-                this->updateWinTitles();
-            });
+            updateTitleTimer->setInterval(1500);
+            if (mPanelLayout == Horizontal) {
+                this->connect(updateTitleTimer, &QTimer::timeout, this, [this]() {
+                    this->updateWinTitles();
+                });
+            }
             updateTitleTimer->start();
-            activeTimers.append(updateTitleTimer);
+            mActiveTimers.append(updateTitleTimer);
         }
         else {
             qDebug() << "Window List applet currently works only on X11. Skipping...";
@@ -396,40 +567,26 @@ void Panel::setRepeatingActions() {
 
 
     // Workspaces applet
-    if (activeAppletsList.contains("workspaces")) {
-        /*QTimer* updateWorkspacesTimer = new QTimer(this);
-        updateWorkspacesTimer->setInterval(400);
-
-        this->connect(updateWorkspacesTimer, &QTimer::timeout, this, [this]() {
-           this->updateWorkspaces();
-        });
-        updateWorkspacesTimer->start();
-        activeTimers.append(updateWorkspacesTimer);*/
-
-        this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, [this]() {
-            qDebug() << "WORKSPACE";
-            this->updateWorkspaces();
-        });
+    if (mActiveAppletsList.contains("workspaces")) {
+        this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, &Panel::updateWorkspaces);
     }
 
     // Local IP applet
-    if (activeAppletsList.contains("localipv4")) {
+    if (mActiveAppletsList.contains("localipv4")) {
         QTimer* updateLocalIPTimer = new QTimer(this);
         updateLocalIPTimer->setInterval(15000);
 
-        this->connect(updateLocalIPTimer, &QTimer::timeout, this, [this]() {
-            this->updateLocalIPv4();
-        });
+        this->connect(updateLocalIPTimer, &QTimer::timeout, this, &Panel::updateLocalIPv4);
         updateLocalIPTimer->start();
-        activeTimers.append(updateLocalIPTimer);
+        mActiveTimers.append(updateLocalIPTimer);
     }
 
     // Battery applet
-    if (activeAppletsList.contains("battery")) {
+    if (mActiveAppletsList.contains("battery")) {
         QTimer* updateBatteryTimer = new QTimer(this);
         updateBatteryTimer->setInterval(5000);
 
-        if (!globalConfig->value("theme").toString().contains("dark")) {
+        if (mStylesheet.contains("dark")) {
             this->connect(updateBatteryTimer, &QTimer::timeout, this, &Panel::updateBatteryState);
         }
         else {
@@ -437,147 +594,193 @@ void Panel::setRepeatingActions() {
         }
 
         updateBatteryTimer->start();
-        activeTimers.append(updateBatteryTimer);
+        mActiveTimers.append(updateBatteryTimer);
     }
 
+    // SNI tray applet
+    if (mActiveAppletsList.contains("sni")) {
+        StatusNotifierWatcher* snw = sniTray->mStatusNotifierWatcher;
+        this->connect(snw, &StatusNotifierWatcher::StatusNotifierItemRegistered, this, [this, snw]() {
+            QString service = snw->registeredStatusNotifierItems().last();
+            qDebug() << "Adding icon to SNI layout..." << service;
 
-    /* We need to update geometry always if panel is not expanded and
-     * WindowList applet used */
-    if (!getConfigValueFromSection(globalConfig, panelName, "expandPanel").toBool()) {
-        /* Window List applet currently works only on X11, so we don't need to update
-         * geometry if isn't activated. */
-        if (!QString::compare(getenv("XDG_SESSION_TYPE"), "x11", Qt::CaseInsensitive)) {
-            if (activeAppletsList.contains("windowlist")) {
-                QTimer* updateGeometryTimer = new QTimer(this);
-                updateGeometryTimer->setInterval(500);
+            QPushButton* sniPushButton = new QPushButton(this);
+            sniPushButton->setFlat(true);
+            sniPushButton->setIcon(QIcon::fromTheme("dialog-question"));
+            mSniWidgets[service] = sniPushButton;
+            mSNILayout->addWidget(sniPushButton);
 
-                this->connect(updateGeometryTimer, &QTimer::timeout, this, [this]() {
-                    this->updateGeometry();
-                });
-                updateGeometryTimer->start();
-                activeTimers.append(updateGeometryTimer);
-            }
-        }
+            QtConcurrent::run(sniTray, &SNITray::setSNIIcon, service, sniPushButton);
+
+            this->connect(sniPushButton, &QPushButton::clicked, this, [this, service, sniPushButton]() {
+                qDebug() << "Activate";
+                msg = QDBusMessage::createMethodCall(service,
+                                                     "/StatusNotifierItem",
+                                                     "org.kde.StatusNotifierItem",
+                                                     "Activate");
+                QList<QVariant> args;
+                args.append(0);
+                args.append(0);
+
+                msg.setArguments(args);
+                panelSessionBus.call(msg);
+            });
+        });
+
+        this->connect(snw, &StatusNotifierWatcher::StatusNotifierItemUnregistered, this, [this, snw]() {
+            QString service = snw->deletedItems.last();
+            delete mSniWidgets[service];
+        });
     }
 }
 
-void Panel::setPanelUI(QObject* execHolder) {
-    // Set font
-    panelFont.setFamily(globalConfig->value("fontFamily").toString());
-    panelFont.setPointSize(globalConfig->value("fontSize").toInt());
-    this->setFont(panelFont);
+void Panel::setPanelUI() {
+#if mPanelLayout == 0
+#include <QHBoxLayout>
+#else
+#include <QVBoxLayout>
+#endif
 
-    // Theme
-    QFile stylesheetReader("/usr/share/plainDE/styles/" + globalConfig->value("theme").toString());
+    // Create layout
+    if (mPanelLayout == Horizontal) {
+        mBoxLayout = new QHBoxLayout(this);
+    }
+    else {
+        mBoxLayout = new QVBoxLayout(this);
+    }
+    mBoxLayout->setContentsMargins(1, 1, 1, 1);
+    mBoxLayout->setSpacing(getConfigValue(mPanelName, "spacing").toInt());
+
+    // Set font
+    mPanelFont.setFamily(getConfigValue("fontFamily").toString());
+    mPanelFont.setPointSize(getConfigValue("fontSize").toInt());
+    this->setFont(mPanelFont);
+    mFontMetrics = new QFontMetrics(mPanelFont);
+
+    // Set theme
+    mStylesheet = getConfigValue("theme").toString();
+    QFile stylesheetReader("/usr/share/plainDE/styles/" + mStylesheet);
     stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
     QTextStream styleSheet(&stylesheetReader);
     this->setStyleSheet(styleSheet.readAll());
 
     // Set accent
-    accent = globalConfig->value("accent").toString();
+    mAccentColor = getConfigValue("accent").toString();
 
     // Set opacity
-    this->setWindowOpacity(getConfigValueFromSection(globalConfig, panelName, "opacity").toDouble());
+    mOpacity = getConfigValue(mPanelName, "opacity").toDouble();
+    this->setWindowOpacity(mOpacity);
 
-    // Set network interface
-    ipIfname = globalConfig->value("ipIfname").toString();
+    // Set default icon theme
+    QIcon::setThemeName(getConfigValue("iconTheme").toString());
+}
 
-    // Icons
-    QIcon::setThemeName(globalConfig->value("iconTheme").toString());
-
-    // Layout
-    QHBoxLayout* uiLayout = new QHBoxLayout;
-    uiLayout->setContentsMargins(1, 1, 1, 1);
-    this->setLayout(uiLayout);
-
+void Panel::addApplets() {
     // Applets: show applets
-    QFontMetrics fm(panelFont);
-    location = (getConfigValueFromSection(globalConfig, panelName, "location").toString() == "top") ? top : bottom;
-
     /* We could use QVariantList::contains, but this approach will not save
      * order of placing applets. Using loop. */
 
-    activeAppletsList = getConfigValueFromSection(globalConfig, panelName, "applets").toArray().toVariantList();
+    mActiveAppletsList = getConfigValue(mPanelName, "applets").toArray().toVariantList();
 
-    foreach (QVariant applet, activeAppletsList) {
+    foreach (QVariant applet, mActiveAppletsList) {
         if (applet == "appmenu") {
             QPushButton* appMenuPushButton = new QPushButton;
             appMenuPushButton->setFlat(true);
             this->layout()->addWidget(appMenuPushButton);
-            appletWidgets["appMenuPushButton"] = appMenuPushButton;
+            mAppletWidgets["appMenuPushButton"] = appMenuPushButton;
 
-            if (QIcon::hasThemeIcon(globalConfig->value("menuIcon").toString())) {
-                appMenuPushButton->setIcon(QIcon::fromTheme(globalConfig->value("menuIcon").toString()));
+            QString menuIcon = getConfigValue("menuIcon").toString();
+            if (QIcon::hasThemeIcon(menuIcon)) {
+                appMenuPushButton->setIcon(QIcon::fromTheme(menuIcon));
             }
             else {
-                appMenuPushButton->setIcon(QIcon(globalConfig->value("menuIcon").toString()));
+                appMenuPushButton->setIcon(QIcon(menuIcon));
             }
 
-            appMenuPushButton->setText(" " + globalConfig->value("menuText").toString());
-            panelNameByApplet["appmenu"] = panelName;
+            if (mPanelLayout == Horizontal) {
+                QString menuText = getConfigValue("menuText").toString();
+                if (!menuText.isEmpty()) {
+                    appMenuPushButton->setText(" " + menuText);
+                }
+            }
         }
 
         else if (applet == "spacer") {
-            this->layout()->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
+            if (mPanelLayout == Horizontal) {
+                this->layout()->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
+            }
+            else {
+                this->layout()->addItem(new QSpacerItem(0, 0, QSizePolicy::Ignored, QSizePolicy::Expanding));
+            }
         }
 
         else if (applet == "splitter") {
-            QLabel* splitter = new QLabel("|");
+            QLabel* splitter = new QLabel((mPanelLayout == Horizontal) ? "|" : "—");
+            splitter->setAlignment(Qt::AlignCenter);
             this->layout()->addWidget(splitter);
-            splitters.append(splitter);
+            mSplitters.append(splitter);
         }
 
         else if (applet == "datetime") {
-            timeFormat = globalConfig->value("timeFormat").toString();
-            if (globalConfig->value("showDate").toBool()) {
-                dateFormat = globalConfig->value("dateFormat").toString();
+            mTimeFormat = getConfigValue("timeFormat").toString();
+            mShowDate = getConfigValue("showDate").toBool();
+            if (mShowDate) {
+                mDateFormat = getConfigValue("dateFormat").toString();
             }
 
             QPushButton* dateTimePushButton = new QPushButton;
             dateTimePushButton->setFlat(true);
             this->layout()->addWidget(dateTimePushButton);
 
-            appletWidgets["dateTimePushButton"] = dateTimePushButton;
+            mAppletWidgets["dateTimePushButton"] = dateTimePushButton;
 
-            if (globalConfig->value("showDate").toBool()) {
+            if (mShowDate) {
                 dateTimePushButton->setText(
-                            _dateTime.__getDisplayedData__(globalConfig->value("timeFormat").toString(),
-                                                           globalConfig->value("dateFormat").toString()));
+                            mDateTime->__getDisplayedData__(mTimeFormat,
+                                                           mDateFormat,
+                                                           mPanelLayout));
             }
             else {
                 dateTimePushButton->setText(
-                            _dateTime.__getDisplayedData__(globalConfig->value("timeFormat").toString()));
+                            mDateTime->__getDisplayedData__(mTimeFormat));
             }
-
-            panelNameByApplet["datetime"] = panelName;
         }
 
         else if (applet == "kblayout") {
-            QPushButton* layoutName = new QPushButton;
-            appletWidgets["layoutName"] = layoutName;
+            QPushButton* layoutIndicator = new QPushButton;
+            mAppletWidgets["layoutIndicator"] = layoutIndicator;
 
-            short buttonWidth = fm.horizontalAdvance("AA");
-            layoutName->setMaximumWidth(buttonWidth);
-            layoutName->setFlat(true);
-            layoutName->setIconSize(QSize(16, 16));
+            short buttonWidth = mFontMetrics->horizontalAdvance("AA");
+            if (mPanelLayout == Horizontal) {
+                 layoutIndicator->setMaximumWidth(buttonWidth);
+            }
 
-            this->layout()->addWidget(layoutName);
+            layoutIndicator->setFlat(true);
+            layoutIndicator->setIconSize(QSize(16, 16));
+            if (mPanelLayout == Horizontal) {
+                layoutIndicator->setMaximumWidth(buttonWidth);
+            }
+            else {
+                layoutIndicator->setMaximumHeight(mFontMetrics->height());
+            }
+
+            this->layout()->addWidget(layoutIndicator);
         }
 
         else if (applet == "usermenu") {
             QPushButton* userMenuPushButton = new QPushButton;
             userMenuPushButton->setFlat(true);
-            userMenuPushButton->setText(getenv("USER"));
-            appletWidgets["userMenuPushButton"] = userMenuPushButton;
+            mAppletWidgets["userMenuPushButton"] = userMenuPushButton;
             userMenuPushButton->setObjectName("userMenuPushButton");
 
-            short userMenuWidth = fm.horizontalAdvance(getenv("USER")) + 20;
-            userMenuPushButton->setMaximumWidth(userMenuWidth);
-
+            if (mPanelLayout == Horizontal) {
+                short userMenuWidth = mFontMetrics->horizontalAdvance(getenv("USER")) + 20;
+                userMenuPushButton->setText(getenv("USER"));
+                userMenuPushButton->setMaximumWidth(userMenuWidth);
+            }
             userMenuPushButton->setIcon(QIcon::fromTheme("computer"));
 
             this->layout()->addWidget(userMenuPushButton);
-            panelNameByApplet["usermenu"] = panelName;
         }
 
         else if (applet == "volume") {
@@ -585,66 +788,126 @@ void Panel::setPanelUI(QObject* execHolder) {
             volumeDial->setMinimum(0);
             volumeDial->setMaximum(100);
             volumeDial->setValue(50);
-            volumeDial->setMaximumWidth(25);
+            if (mPanelLayout == Horizontal) {
+                volumeDial->setMaximumWidth(25);
+            }
+            else {
+                volumeDial->setMaximumHeight(25);
+            }
+
 
             QLabel* volumeLabel = new QLabel("50%");
-            volumeLabel->setMaximumWidth(fm.horizontalAdvance("100%"));
+            if (mPanelLayout == Horizontal) {
+                volumeLabel->setMaximumWidth(mFontMetrics->horizontalAdvance("100%"));
+            }
+            volumeLabel->setAlignment(Qt::AlignCenter);
 
             this->layout()->addWidget(volumeDial);
             this->layout()->addWidget(volumeLabel);
 
             VolumeApplet::setVolume(50);
 
-            appletWidgets["volumeDial"] = volumeDial;
-            appletWidgets["volumeLabel"] = volumeLabel;
+            mAppletWidgets["volumeDial"] = volumeDial;
+            mAppletWidgets["volumeLabel"] = volumeLabel;
         }
 
         else if (applet == "windowlist") {
-            windowListLayout = new QHBoxLayout;
-            uiLayout->addLayout(windowListLayout);
+            if (mPanelLayout == Horizontal) {
+                mWindowListLayout = new QHBoxLayout();
+            }
+            else {
+                mWindowListLayout = new QVBoxLayout();
+            }
+            mBoxLayout->addLayout(mWindowListLayout);
         }
 
         else if (applet == "workspaces") {
-            qint8 countWorkspaces = KWindowSystem::numberOfDesktops();
-            for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
-                QPushButton* currentWorkspace = new QPushButton(QString::number(workspace+1));
-                currentWorkspace->setMaximumWidth(fm.horizontalAdvance("100"));
-                currentWorkspace->setStyleSheet("background-color: #9a9996; color: #000000;");
-                appletWidgets["workspace" + QString::number(workspace+1)] = currentWorkspace;
+            if (mPanelLayout == Horizontal) {
+                qint8 countWorkspaces = KWindowSystem::numberOfDesktops();
+                for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
+                    QPushButton* currentWorkspace = new QPushButton(QString::number(workspace+1));
+                    currentWorkspace->setMaximumWidth(mFontMetrics->horizontalAdvance("100"));
+                    currentWorkspace->setStyleSheet("background-color: #9a9996; color: #000000;");
+                    mAppletWidgets["workspace" + QString::number(workspace+1)] = currentWorkspace;
 
-                if (KWindowSystem::currentDesktop() == workspace+1) {
-                    currentWorkspace->setStyleSheet("background-color: " + accent + "; color: #ffffff;");
+                    if (KWindowSystem::currentDesktop() == workspace+1) {
+                        currentWorkspace->setStyleSheet("background-color: " + mAccentColor + "; color: #ffffff;");
+                    }
+                    this->layout()->addWidget(currentWorkspace);
                 }
+            }
+            else {
+                QPushButton* currentWorkspace = new QPushButton(QString::number(KWindowSystem::currentDesktop()));
+                currentWorkspace->setMaximumHeight(mPanelThickness - 2);
+                currentWorkspace->setStyleSheet("background-color: " + mAccentColor + "; color: #ffffff;");
+                mAppletWidgets["workspace"] = currentWorkspace;
                 this->layout()->addWidget(currentWorkspace);
             }
         }
 
         else if (applet == "localipv4") {
-            QLabel* ipLabel = new QLabel("0.0.0.0");
-            this->layout()->addWidget(ipLabel);
-            appletWidgets["ipLabel"] = ipLabel;
+            QGraphicsScene* ipScene = new QGraphicsScene(this);
+            QGraphicsTextItem* text = ipScene->addText("0.0.0.0");
+            text->setFont(mPanelFont);
+
+            QString color = getConfigValue("ipColor").toString().right(6);
+
+            QList<short> rgb;
+            QString block;
+            for (int i = 0; i < 6; i += 2) {
+                block = QString(color.at(i)) + QString(color.at(i+1));
+                rgb.append(block.toInt(NULL, 16));
+            }
+            text->setDefaultTextColor(QColor::fromRgb(rgb[0], rgb[1], rgb[2]));
+
+            QGraphicsView* view = new QGraphicsView(ipScene, this);
+            view->setStyleSheet("background: transparent");
+
+            if (mPanelLayout == Vertical) {
+                if (mPanelLocation == Left) {
+                    view->rotate(90);
+                    mIPAngle = 90;
+                }
+                else {
+                    view->rotate(270);
+                    mIPAngle = 270;
+                }
+
+                view->setMaximumHeight(mFontMetrics->horizontalAdvance("0.0.0.0"));
+                view->setMinimumHeight(mFontMetrics->horizontalAdvance("0.0.0.0"));
+            }
+            else {
+                view->setMaximumWidth(mFontMetrics->horizontalAdvance("0.0.0.0"));
+                view->setMinimumWidth(mFontMetrics->horizontalAdvance("0.0.0.0"));
+            }
+
+            view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+            view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+            this->layout()->addWidget(view);
+            mOtherItems["ipText"] = text;
+            mOtherItems["ipView"] = view;
         }
 
         else if (applet == "mpris") {
-            short buttonWidth = fm.horizontalAdvance("⏯");
+            short buttonWidth = mFontMetrics->horizontalAdvance("⏯") + 2;
             QPushButton* mprisPushButton = new QPushButton("⏯");  // U+23EF - play/pause
-            mprisPushButton->setMaximumWidth(buttonWidth);
+            if (mPanelLayout == Horizontal) {
+                mprisPushButton->setMaximumWidth(buttonWidth);
+            }
             mprisPushButton->setFlat(true);
-            appletWidgets["mprisPushButton"] = mprisPushButton;
+            mAppletWidgets["mprisPushButton"] = mprisPushButton;
             this->layout()->addWidget(mprisPushButton);
-            panelNameByApplet["mpris"] = panelName;
         }
 
         else if (applet == "battery") {
-            batteryIconSize = (double)panelHeight / 1.45;
+            mBatteryIconSize = (double)mPanelHeight / 1.45;
             QLabel* batteryIcon = new QLabel;
-            appletWidgets["batteryIcon"] = batteryIcon;
+            mAppletWidgets["batteryIcon"] = batteryIcon;
             QLabel* batteryLabel = new QLabel("100%");
-            appletWidgets["batteryLabel"] = batteryLabel;
+            mAppletWidgets["batteryLabel"] = batteryLabel;
             this->layout()->addWidget(batteryIcon);
             this->layout()->addWidget(batteryLabel);
-            panelNameByApplet["batteryIcon"] = panelName;
-            panelNameByApplet["batteryLabel"] = panelName;
         }
 
         else if (applet.toString().startsWith("launcher:")) {
@@ -653,26 +916,26 @@ void Panel::setPanelUI(QObject* execHolder) {
             QString desktopEntryPath = "/usr/share/applications/" + launcherData[1];
             QString exec;
             QString iconPath;
+            QString tooltipLabel;
 
             QSettings desktopFileReader(desktopEntryPath, QSettings::IniFormat);
             desktopFileReader.sync();
             desktopFileReader.beginGroup("Desktop Entry");
                 exec = desktopFileReader.value("Exec").toString();
                 iconPath = desktopFileReader.value("Icon").toString();
+                tooltipLabel = desktopFileReader.value("Name").toString();
             desktopFileReader.endGroup();
 
-            /* https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html
-             * 'The Exec key' */
+            // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html#exec-variables
             if (exec[exec.length()-2] == "%") {
                 exec.chop(2);
             }
 
-
             short iconSize;
-            iconSize = getConfigValueFromSection(globalConfig, panelName, "launcherIconSize").toInt();
+            iconSize = getConfigValue(mPanelName, "launcherIconSize").toInt();
             //iconSize = (double)panelHeight / 1.45;
 
-            QPushButton* launcherPushButton = new QPushButton;
+            QPushButton* launcherPushButton = new QPushButton(this);
             if (QIcon::hasThemeIcon(iconPath)) {
                 launcherPushButton->setIcon(QIcon::fromTheme(iconPath));
             }
@@ -686,14 +949,28 @@ void Panel::setPanelUI(QObject* execHolder) {
             }
             launcherPushButton->setIconSize(QSize(iconSize, iconSize));
             launcherPushButton->setFlat(true);
+            launcherPushButton->setToolTip(tooltipLabel);
+            launcherPushButton->setToolTipDuration(10000);
+            mAppletWidgets[applet.toString()] = launcherPushButton;
 
             this->connect(launcherPushButton, &QPushButton::clicked, this,
-                          [execHolder, exec]() {
-                QProcess* process = new QProcess(execHolder);
+                          [this, exec]() {
+                QProcess* process = new QProcess(mExecHolder);
+                mProcesses.append(process);
                 process->start(exec);
             });
 
             this->layout()->addWidget(launcherPushButton);
+        }
+
+        else if (applet == "sni") {
+            if (mPanelLayout == Horizontal) {
+                mSNILayout = new QHBoxLayout();
+            }
+            else {
+                mSNILayout = new QVBoxLayout();
+            }
+            mBoxLayout->addLayout(mSNILayout);
         }
 
         else {
@@ -705,18 +982,35 @@ void Panel::setPanelUI(QObject* execHolder) {
     this->show();
 
     // Applets: set actions
-    foreach (QVariant applet, activeAppletsList) {
+    foreach (QVariant applet, mActiveAppletsList) {
         if (applet == "appmenu") {
-            _menuUI = menu->__createUI__(execHolder,
-                                         location,
-                                         panelHeight,
-                                         panelFont,
-                                         appletWidgets["appMenuPushButton"]->x(),
-                                         appletWidgets["appMenuPushButton"]->geometry().topRight().x(),
-                                         globalConfig->value("appMenuTriangularTabs").toBool(), accent,
-                                         globalConfig->value("theme").toString(),
-                                         getConfigValueFromSection(globalConfig, panelName, "opacity").toDouble());
-            this->connect(static_cast<QPushButton*>(appletWidgets["appMenuPushButton"]),
+            int buttonCoord1 = 0, buttonCoord2 = 0;
+            if (mPanelLayout == Horizontal) {
+                buttonCoord1 = mAppletWidgets["appMenuPushButton"]->x() + mAxisShift;
+                buttonCoord2 = mAppletWidgets["appMenuPushButton"]->geometry().topRight().x() + mAxisShift;
+            }
+            else {
+                buttonCoord1 = mAppletWidgets["appMenuPushButton"]->y() + mAxisShift;
+                buttonCoord2 = mAppletWidgets["appMenuPushButton"]->geometry().bottomRight().y() + mAxisShift;
+            }
+
+            QVariantList favApps = getConfigValue("favApps").toArray().toVariantList();
+
+            mAppMenu = new AppMenu(mExecHolder,
+                                   mPanelLocation,
+                                   mPanelThickness,
+                                   mScreenWidth,
+                                   mScreenHeight,
+                                   mPanelFont,
+                                   buttonCoord1,
+                                   buttonCoord2,
+                                   getConfigValue("useTriangularTabs").toBool(),
+                                   mAccentColor,
+                                   mStylesheet,
+                                   mOpacity,
+                                   &favApps);
+
+            this->connect(static_cast<QPushButton*>(mAppletWidgets["appMenuPushButton"]),
                           &QPushButton::clicked,
                           this,
                           &Panel::toggleAppMenu);
@@ -725,50 +1019,74 @@ void Panel::setPanelUI(QObject* execHolder) {
 
         else if (applet == "datetime") {
             // https://code.woboq.org/qt5/qtbase/src/corelib/global/qnamespace.h.html#Qt::DayOfWeek
-            Qt::DayOfWeek day = static_cast<Qt::DayOfWeek>(globalConfig->value("firstDayOfWeek").toInt());
+            Qt::DayOfWeek day = static_cast<Qt::DayOfWeek>(getConfigValue("firstDayOfWeek").toInt());
 
-            _dateTimeUI = _dateTime.__createUI__(location,
-                                                 panelHeight,
-                                                 panelFont,
-                                                 appletWidgets["dateTimePushButton"]->pos().x(),
-                                                 appletWidgets["dateTimePushButton"]->geometry().topRight().x(),
-                                                 day);
+            int buttonCoord1 = 0, buttonCoord2 = 0;
+            if (mPanelLayout == Horizontal) {
+                buttonCoord1 = mAppletWidgets["dateTimePushButton"]->x() + mAxisShift;
+                buttonCoord2 = mAppletWidgets["dateTimePushButton"]->geometry().topRight().x() + mAxisShift;
+            }
+            else {
+                buttonCoord1 = mAppletWidgets["dateTimePushButton"]->y() + mAxisShift;
+                buttonCoord2 = mAppletWidgets["dateTimePushButton"]->geometry().bottomRight().y() + mAxisShift;
+            }
+            mDateTime = new DateTimeApplet(day,
+                                           mPanelLocation,
+                                           mPanelFont,
+                                           mPanelThickness,
+                                           mScreenWidth,
+                                           mScreenHeight,
+                                           buttonCoord1,
+                                           buttonCoord2,
+                                           mOpacity);
 
-            this->connect(static_cast<QPushButton*>(appletWidgets["dateTimePushButton"]),
+            this->connect(static_cast<QPushButton*>(mAppletWidgets["dateTimePushButton"]),
                           &QPushButton::clicked,
                           this,
                           &Panel::toggleCalendar);
         }
 
         else if (applet == "kblayout") {
-            _kbLayout.__init__(globalConfig->value("kbLayouts").toString().split(','));
-            if (globalConfig->value("useCountryFlag").toBool()) {
-                static_cast<QPushButton*>(appletWidgets["layoutName"])->setIcon(
-                            QIcon(_kbLayout.getCurrentFlag()));
+            mKbLayout.__init__(getConfigValue("kbLayouts").toString().split(','));
+            if (getConfigValue("useCountryFlag").toBool()) {
+                static_cast<QPushButton*>(mAppletWidgets["layoutIndicator"])->setIcon(
+                            QIcon(mKbLayout.getCurrentFlag()));
             }
             else {
-                static_cast<QPushButton*>(appletWidgets["layoutName"])->setText(_kbLayout.getCurrentKbLayout());
+                static_cast<QPushButton*>(mAppletWidgets["layoutIndicator"])->setText(mKbLayout.getCurrentKbLayout());
             }
         }
 
         else if (applet == "usermenu") {
-            _userMenuUI = _userMenu.__createUI__(execHolder,
-                                                 location,
-                                                 panelHeight,
-                                                 panelFont,
-                                                 appletWidgets["userMenuPushButton"]->pos().x(),
-                                                 appletWidgets["userMenuPushButton"]->geometry().topRight().x(),
-                                                 globalConfig->value("theme").toString(),
-                                                 getConfigValueFromSection(globalConfig, panelName, "opacity").toDouble());
+            int buttonCoord1 = 0, buttonCoord2 = 0;
+            if (mPanelLayout == Horizontal) {
+                buttonCoord1 = mAppletWidgets["userMenuPushButton"]->x() + mAxisShift;
+                buttonCoord2 = mAppletWidgets["userMenuPushButton"]->geometry().topRight().x() + mAxisShift;
+            }
+            else {
+                buttonCoord1 = mAppletWidgets["userMenuPushButton"]->y() + mAxisShift;
+                buttonCoord2 = mAppletWidgets["userMenuPushButton"]->geometry().bottomRight().y() + mAxisShift;
+            }
+            mUserMenu = new UserMenu(this,
+                                     mExecHolder,
+                                     mPanelLocation,
+                                     mPanelThickness,
+                                     mScreenWidth,
+                                     mScreenHeight,
+                                     mPanelFont,
+                                     buttonCoord1,
+                                     buttonCoord2,
+                                     mStylesheet,
+                                     mOpacity);
 
-            this->connect(static_cast<QPushButton*>(appletWidgets["userMenuPushButton"]),
+            this->connect(static_cast<QPushButton*>(mAppletWidgets["userMenuPushButton"]),
                           &QPushButton::clicked,
                           this,
                           &Panel::toggleUserMenu);
         }
 
         else if (applet == "volume") {
-            this->connect(static_cast<QDial*>(appletWidgets["volumeDial"]),
+            this->connect(static_cast<QDial*>(mAppletWidgets["volumeDial"]),
                           &QDial::valueChanged,
                           this,
                           &Panel::setVolume);
@@ -776,23 +1094,28 @@ void Panel::setPanelUI(QObject* execHolder) {
 
         else if (applet == "windowlist") {
             this->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, []() {
-                WindowList::getWinList(winIDs);
-                QList<WId> keys = winWidgets.keys();
+                WindowList::getWinList(mWinIDs);
+                QList<WId> keys = mWinWidgets.keys();
                 foreach (WId id, keys) {
-                    if (!winIDs->contains(id)) {
-                        delete winWidgets[id];
-                        winWidgets.remove(id);
+                    if (!mWinIDs->contains(id)) {
+                        delete mWinWidgets[id];
+                        mWinWidgets.remove(id);
                     }
                 }
             });
 
-            this->updateWinList();
+            if (mPanelLayout == Horizontal) {
+                this->updateWinList();
+            }
+            else {
+                this->updateWinList(false);
+            }
             this->accentActiveWindow();
         }
 
         else if (applet == "workspaces") {
             for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
-                this->connect(static_cast<QPushButton*>(appletWidgets["workspace" + QString::number(workspace+1)]),
+                this->connect(static_cast<QPushButton*>(mAppletWidgets["workspace" + QString::number(workspace+1)]),
                         &QPushButton::clicked, this, [workspace]() {
                     KWindowSystem::setCurrentDesktop(workspace+1);
                 });
@@ -804,27 +1127,35 @@ void Panel::setPanelUI(QObject* execHolder) {
         }
 
         else if (applet == "mpris") {
-            mprisApplet = new MPRISApplet;
-            mprisWidget = mprisApplet->createUI(getConfigValueFromSection(globalConfig, panelName, "location").toString(),
-                                                panelHeight,
-                                                panelFont,
-                                                appletWidgets["mprisPushButton"]->x(),
-                                                appletWidgets["mprisPushButton"]->geometry().topRight().x(),
-                                                globalConfig->value("theme").toString(),
-                                                getConfigValueFromSection(globalConfig, panelName, "opacity").toDouble(),
-                                                accent);
+            int buttonCoord1 = 0, buttonCoord2 = 0;
+            if (mPanelLayout == Horizontal) {
+                buttonCoord1 = mAppletWidgets["mprisPushButton"]->x() + mAxisShift;
+                buttonCoord2 = mAppletWidgets["mprisPushButton"]->geometry().topRight().x() + mAxisShift;
+            }
+            else {
+                buttonCoord1 = mAppletWidgets["mprisPushButton"]->y() + mAxisShift;
+                buttonCoord2 = mAppletWidgets["mprisPushButton"]->geometry().bottomRight().y() + mAxisShift;
+            }
+            mMprisApplet = new MPRISApplet(mPanelLocation,
+                                           mPanelThickness,
+                                           mScreenWidth,
+                                           mScreenHeight,
+                                           buttonCoord1,
+                                           buttonCoord2,
+                                           mStylesheet,
+                                           mOpacity);
 
-            this->connect(static_cast<QPushButton*>(appletWidgets["mprisPushButton"]),
+            this->connect(static_cast<QPushButton*>(mAppletWidgets["mprisPushButton"]),
                           &QPushButton::clicked,
                           this,
                           &Panel::toggleMPRIS);
         }
 
         else if (applet == "battery") {
-            batteryApplet = new BatteryApplet;
-            batteryName = batteryApplet->init();
-            if (!batteryName.isEmpty()) {
-                if (!globalConfig->value("theme").toString().contains("dark")) {
+            mBatteryApplet = new BatteryApplet;
+            mBatteryName = mBatteryApplet->init();
+            if (!mBatteryName.isEmpty()) {
+                if (!mStylesheet.contains("dark")) {
                     this->updateBatteryState();
                 }
                 else {
@@ -832,13 +1163,17 @@ void Panel::setPanelUI(QObject* execHolder) {
                 }
             }
             else {
-                delete appletWidgets["batteryIcon"];
-                appletWidgets.remove("batteryIcon");
-                delete appletWidgets["batteryLabel"];
-                appletWidgets.remove("batteryLabel");
+                delete mAppletWidgets["batteryIcon"];
+                mAppletWidgets.remove("batteryIcon");
+                delete mAppletWidgets["batteryLabel"];
+                mAppletWidgets.remove("batteryLabel");
                 qDebug() << "Deactivating battery applet (no battery found)...";
-                activeAppletsList.removeOne("battery");
+                mActiveAppletsList.removeOne("battery");
             }
+        }
+
+        else if (applet == "sni") {
+            sniTray = new SNITray();
         }
 
         else {
@@ -849,231 +1184,278 @@ void Panel::setPanelUI(QObject* execHolder) {
         }
     }
 
-    minWidth = this->width();
     setRepeatingActions();
 }
 
 
 // Slots
 void Panel::toggleAppMenu() {
-    if (!_menuUI.menuWidget->isVisible()) {
-        _menuUI.searchBox->clear();
-        menu->buildMenu(_menuUI.appListWidget, "");
-        menu->buildFavMenu(_menuUI.favListWidget, globalConfig->value("favApps").toArray().toVariantList());
-        _menuUI.tabWidget->setCurrentIndex(0);
-
-        short ax;
-        short offset = 0;
-        if (!getConfigValueFromSection(globalConfig, panelNameByApplet["appmenu"], "expand").toBool()) {
-            offset = getConfigValueFromSection(globalConfig, panelNameByApplet["appmenu"], "xOffset").toInt();
-        }
-        short buttonX = appletWidgets["appMenuPushButton"]->x();
-        short buttonXRight = appletWidgets["appMenuPushButton"]->geometry().topRight().x();
-        short appMenuWidth = 450;
-
-        if (primaryScreen->geometry().width() - (buttonX + offset) >= appMenuWidth) {
-            ax = buttonX + offset;
-        }
-        else {
-            ax = (buttonXRight + offset) - appMenuWidth;
-        }
-
-        _menuUI.menuWidget->move(ax, _menuUI.menuWidget->geometry().y());
-        _menuUI.menuWidget->show();
-
+    if (!mAppMenu->isVisible()) {
+        mAppMenu->mTabWidget->setCurrentIndex(0);
+        mAppMenu->mSearchBox->clear();
+        mAppMenu->buildMenu(mAppMenu->mAppsList, "");
+        mAppMenu->show();
     }
     else {
-        _menuUI.menuWidget->hide();
+        while (mAppMenu->mAppsList->count() > 0) {
+            delete mAppMenu->mAppsList->item(0);
+        }
+        mAppMenu->mAppsList->clear();
+        mAppMenu->hide();
     }
 }
 
 void Panel::toggleCalendar() {
-    if (!_dateTimeUI.calendarWidget->isVisible()) {
-        short ax;
-        short offset = 0;
-        if (!getConfigValueFromSection(globalConfig, panelNameByApplet["datetime"], "expand").toBool()) {
-            offset = getConfigValueFromSection(globalConfig, panelNameByApplet["datetime"], "xOffset").toInt();
-        }
-        short buttonX = appletWidgets["dateTimePushButton"]->x();
-        short buttonXRight = appletWidgets["dateTimePushButton"]->geometry().topRight().x();
-        short calendarWidth = 300;
-        if (primaryScreen->geometry().width() - (buttonX + offset) >= calendarWidth) {
-            ax = buttonX + offset;
-        }
-        else {
-            ax = (buttonXRight + offset) - calendarWidth;
-        }
-
-        _dateTimeUI.calendarWidget->move(ax, _dateTimeUI.calendarWidget->geometry().y());
-        _dateTimeUI.calendarWidget->show();
+    if (!mDateTime->isVisible()) {
+        mDateTime->show();
     }
-    else _dateTimeUI.calendarWidget->hide();
+    else {
+        mDateTime->hide();
+    }
 }
 
 void Panel::toggleUserMenu() {
-    if (!_userMenuUI.userMenuWidget->isVisible()) {
-        QFontMetrics fm(panelFont);
-        short userMenuWidth = fm.horizontalAdvance("About plainDE") + 20;
-        short ax;
-        short offset = 0;
-        if (!getConfigValueFromSection(globalConfig, panelNameByApplet["usermenu"], "expand").toBool()) {
-            offset = getConfigValueFromSection(globalConfig, panelNameByApplet["usermenu"], "xOffset").toInt();
-        }
-        short buttonX = appletWidgets["userMenuPushButton"]->x();
-        short buttonXRight = appletWidgets["userMenuPushButton"]->geometry().topRight().x();
-
-        if (primaryScreen->geometry().width() - (buttonX + offset) >= userMenuWidth) {
-            ax = buttonX + offset;
-        }
-        else {
-            ax = (buttonXRight + offset) - userMenuWidth;
-        }
-
-        _userMenuUI.userMenuWidget->move(ax,
-                                         _userMenuUI.userMenuWidget->geometry().y());
-        _userMenuUI.userMenuWidget->show();
+    if (!mUserMenu->isVisible()){
+        mUserMenu->show();
     }
-    else _userMenuUI.userMenuWidget->hide();
+    else {
+        mUserMenu->hide();
+    }
 }
 
 void Panel::toggleMPRIS() {
-    if (!mprisWidget->isVisible()) {
-        delete mprisApplet;
-        delete mprisWidget;
-        mprisApplet = new MPRISApplet;
-        mprisWidget = mprisApplet->createUI(getConfigValueFromSection(globalConfig, panelNameByApplet["mpris"], "location").toString(),
-                                            panelHeight,
-                                            panelFont,
-                                            appletWidgets["mprisPushButton"]->x(),
-                                            appletWidgets["mprisPushButton"]->geometry().topRight().x(),
-                                            globalConfig->value("theme").toString(),
-                                            getConfigValueFromSection(globalConfig, panelName, "opacity").toDouble(),
-                                            accent);
-        mprisWidget->show();
+    for (int i = 0; i < mMprisCards->length(); ++i) {
+        delete mMprisCards->at(i);
+        mMprisCards->removeAt(i);
     }
-    else {
-        mprisWidget->hide();
+    if (!mMprisApplet->isVisible()) {
+        mMprisApplet->setPlayerCards(mMprisCards,
+                                     mPanelFont,
+                                     mStylesheet,
+                                     mAccentColor);
+        mMprisApplet->show();
     }
-}
-
-void Panel::filterAppsList() {
-    menu->buildMenu(_menuUI.appListWidget, _menuUI.searchBox->text());
+    else { 
+        mMprisApplet->hide();
+    }
 }
 
 void Panel::setVolume() {
-    short newValue = static_cast<QDial*>(appletWidgets["volumeDial"])->value();
+    short newValue = static_cast<QDial*>(mAppletWidgets["volumeDial"])->value();
     VolumeApplet::setVolume(newValue);
-    static_cast<QLabel*>(appletWidgets["volumeLabel"])->setText(QString::number(newValue) + "%");
+    static_cast<QLabel*>(mAppletWidgets["volumeLabel"])->setText(QString::number(newValue) + "%");
 }
 
-
-void Panel::animation() {
-    if (globalConfig->value("enableAnimation").toBool()) {
+void Panel::animation(AnimationType type) {
+    if (getConfigValue("enableAnimation").toBool()) {
         QPropertyAnimation* panelAnimation = new QPropertyAnimation(this, "pos");
         panelAnimation->setDuration(250);
 
-        QScreen* primaryScreen = QGuiApplication::primaryScreen();
-
-        unsigned short ax = 0;
-        if (!getConfigValueFromSection(globalConfig, panelName, "expand").toBool()) {
-            ax = getConfigValueFromSection(globalConfig, panelName, "xOffset").toInt();
+        unsigned short ax = 0, ay = 0;
+        if (!getConfigValue("expand").toBool()) {
+            if (mPanelLayout == Horizontal) {
+                ax = this->geometry().x();
+            }
+            else if (mPanelLayout == Vertical) {
+                ay = this->geometry().y();
+            }
         }
 
-        if (getConfigValueFromSection(globalConfig, panelName, "location").toString() == "top") {
-            panelAnimation->setStartValue(QPoint(ax, -panelHeight));
-            panelAnimation->setEndValue(QPoint(ax, 0));
+        switch (mPanelLocation) {
+        case Top:
+            if (type == Show) {
+                panelAnimation->setStartValue(QPoint(ax, -mPanelThickness));
+                panelAnimation->setEndValue(QPoint(ax, 0));
+            }
+            else {
+                panelAnimation->setStartValue(QPoint(ax, 0));
+                panelAnimation->setEndValue(QPoint(ax, -mPanelThickness));
+            }
+            break;
+        case Bottom:
+            if (type == Show) {
+                panelAnimation->setStartValue(QPoint(ax, mScreenHeight));
+                panelAnimation->setEndValue(QPoint(ax, mScreenHeight - mPanelThickness));
+            }
+            else {
+                panelAnimation->setStartValue(QPoint(ax, mScreenHeight - mPanelThickness));
+                panelAnimation->setEndValue(QPoint(ax, mScreenHeight));
+            }
+            break;
+        case Left:
+            if (type == Show) {
+                panelAnimation->setStartValue(QPoint(-mPanelThickness, ay));
+                panelAnimation->setEndValue(QPoint(0, ay));
+            }
+            else {
+                panelAnimation->setStartValue(QPoint(0, ay));
+                panelAnimation->setEndValue(QPoint(-mPanelThickness, ay));
+            }
+            break;
+        case Right:
+            if (type == Show) {
+                panelAnimation->setStartValue(QPoint(mScreenWidth, ay));
+                panelAnimation->setEndValue(QPoint(mScreenWidth - mPanelThickness, ay));
+            }
+            else {
+                panelAnimation->setStartValue(QPoint(mScreenWidth - mPanelThickness, ay));
+                panelAnimation->setEndValue(QPoint(mScreenWidth, ay));
+            }
+            break;
         }
-        else {
-            panelAnimation->setStartValue(QPoint(ax, primaryScreen->size().height()));
-            panelAnimation->setEndValue(QPoint(ax, primaryScreen->size().height() - panelHeight));
-        }
+
         panelAnimation->start();
+
+        if (type == Hide) {
+            this->connect(panelAnimation, &QPropertyAnimation::finished, this, [this]() {
+                QThread::msleep(250);
+                emit animationFinished();
+            });
+        }
+
     }
 }
 
-void Panel::testpoint(QObject* parent, QJsonObject* config) {
+void Panel::testpoint(QObject* parent) {
     // parent is Initializer class instance
-    // config is ~/.config/plainDE/config.json
+
+    /* If you want to get config.json value, use getConfigValue function
+     * It can be used like this:
+     *  getConfigValue(entry)
+     * if you want to get an outside entry (such as iconTheme, menuText, ...)
+     * Or like this:
+     *  getConfigValue(mPanelName, entry)
+     * if you want to get an inner entry of this panel (such as spacing, applets, ...) */
 
     // here you can put your code to test
+
+
 }
 
-Panel::Panel(QWidget* parent,
-             QObject* execHolder,
-             QJsonObject* _config,
-             qint8 number): QWidget(parent) {
-    basicInit(_config, number);
-    setPanelGeometry();
-    setPanelUI(execHolder);
-    animation();
+Panel::Panel(QObject* parent,
+             QJsonObject* config ,
+             int id,
+             QApplication* app,
+             QList<Panel*>* prevPanels): QWidget(nullptr) {
+    mApplication = app;
+    mConfig = config;
+    mPanelWId = this->winId();
+    KWindowInfo pIDInfo(mPanelWId, NET::WMPid);
+    mPanelPID = pIDInfo.pid();
+    mPanelName = "panel" + QString::number(id);
+    mExecHolder = parent;
+    mIfname = getConfigValue("ipIfname").toString();
 
-    testpoint(execHolder, _config);
+    // we need this property to avoid interference of two panels
+    // (i.e., left and top)
+    mPrevPanels = prevPanels;
+
+    mMprisCards = new QList<QWidget*>;
+
+    this->setWindowTitle("plainPanel");
+    this->setObjectName("panel");
+
+    setPanelFlags();
+    setPanelGeometry();
+    setPanelUI();
+    addApplets();
+    animation(Show);
+
+    this->connect(mUserMenu, &UserMenu::panelShouldQuit, this, [this]() {
+        // Some cleaning
+        foreach (QProcess* process, mProcesses) {
+            delete process;
+        }
+        mProcesses.clear();
+
+        // Panel hide animation
+        animation(Hide);
+    });
+
+    testpoint(mExecHolder);
 }
 
 Panel::~Panel() {
-    qDebug() << "DEBUG POINT 1";
     // Stop all timers
-    foreach (QTimer* currentTimer, activeTimers) {
+    foreach (QTimer* currentTimer, mActiveTimers) {
         currentTimer->stop();
         delete currentTimer;
     }
 
-
     // Delete App Menu
-    if (activeAppletsList.contains("appmenu")) {
-        _menuUI.menuWidget->hide();
-        delete menu;
+    if (mActiveAppletsList.contains("appmenu")) {
+        mAppMenu->hide();
+        while (mAppMenu->mAppsList->count() > 0) {
+            delete mAppMenu->mAppsList->item(0);
+        }
+        delete mAppMenu;
     }
 
     // Delete calendar
-    if (activeAppletsList.contains("datetime")) {
-        _dateTimeUI.calendarWidget->hide();
-        delete _dateTimeUI.calendarWidget;
+    if (mActiveAppletsList.contains("datetime")) {
+        mDateTime->hide();
+        delete mDateTime;
     }
 
     // Delete user menu
-    if (activeAppletsList.contains("datetime")) {
-        _userMenuUI.userMenuWidget->hide();
-        delete _userMenuUI.userMenuWidget;
+    if (mActiveAppletsList.contains("usermenu")) {
+        mUserMenu->hide();
+        delete mUserMenu;
     }
 
     // Delete MPRIS
-    if (activeAppletsList.contains("mpris")) {
-        delete mprisApplet;
-        delete mprisWidget;
+    if (mActiveAppletsList.contains("mpris")) {
+        delete mMprisApplet;
+        for (int i = 0; i < mMprisCards->length(); ++i) {
+            delete mMprisCards->at(i);
+            mMprisCards->removeAt(i);
+        }
+        delete mMprisCards;
+    }
+
+    // Delete SNI
+    if (mActiveAppletsList.contains("sni")) {
+        delete sniTray;
+        foreach (QWidget* sniPB, mSniWidgets.values()) {
+            delete sniPB;
+        }
+        delete mSNILayout;
     }
 
     // Delete all windows from Window List applet (if active)
-    if (activeAppletsList.contains("windowlist")) {
-        foreach (QPushButton* currentButton, winWidgets) {
+    if (mActiveAppletsList.contains("windowlist")) {
+        foreach (QPushButton* currentButton, mWinWidgets) {
             delete currentButton;
         }
+        delete mWindowListLayout;
     }
 
-    // Delete splitters
-    foreach (QLabel* currentLabel, splitters) {
+    // Delete mSplitters
+    foreach (QLabel* currentLabel, mSplitters) {
         delete currentLabel;
     }
-    qDebug() << "DEBUG POINT 2";
 
     // Delete all widgets from panel
-    foreach (QWidget* currentWidget, appletWidgets) {
+    foreach (QWidget* currentWidget, mAppletWidgets) {
         delete currentWidget;
     }
-    qDebug() << "DEBUG POINT 3";
-
 
     // Delete layout
-    delete this->layout();
+    delete mBoxLayout;
+
+    // Delete other stuff
+    delete mFontMetrics;
 
     // Clear variables
-    appletWidgets.clear();
-    activeAppletsList.clear();
-    activeTimers.clear();
-    splitters.clear();
-    winIDs->clear();
-    winWidgets.clear();
-    panelNameByApplet.clear();
+    mAppletWidgets.clear();
+    mActiveAppletsList.clear();
+    mActiveTimers.clear();
+    mSplitters.clear();
+    mWinIDs->clear();
+    mWinWidgets.clear();
+    mProcesses.clear();
 
     this->hide();
+
+    qDebug() << mPanelName << "destructed.";
 }

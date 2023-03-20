@@ -1,26 +1,19 @@
-#include <stdio.h>
-#include <QProcess>
-
-#include "../../applet.h"
-#include "../../panel.h"
-
 #ifndef APPMENU_H
 #define APPMENU_H
 
-/*struct App {
-    QString desktopFilePath;
-    QString displayedName;
-    QIcon icon;
-    QString exec;
-};*/
+#include <QWidget>
+#include <QTabWidget>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QListWidgetItem>
+#include <QDir>
+#include <QLabel>
+#include <QPushButton>
+#include <QSettings>
+#include <QProcess>
 
-struct menuUI {
-    QWidget* menuWidget;
-    QLineEdit* searchBox;
-    QListWidget* appListWidget;
-    QListWidget* favListWidget;
-    QTabWidget* tabWidget;
-};
+#include "../../panel.h"
+
 
 struct App {
     QString displayedName;
@@ -29,19 +22,63 @@ struct App {
     bool display;
 };
 
-
-class AppMenu : public Applet {
+class AppMenu : public QWidget {
 public:
-    menuUI __createUI__(QObject* parent, PanelLocation location, short panelHeight, QFont font,
-                        short buttonX, short buttonXRight, bool triangularTabs,
-                        QString accent, QString theme, qreal opacity);
-    void makeItem(QString name, QIcon icon, QListWidgetItem* item);
-    App readDesktopFile(QString pathToCurrentDesktopFile);
-    void buildMenu(QListWidget* appList, QString searchRequest);
-    void searchApps(QListWidget* menuAppsList, QString mask);
-    void execApp(QObject* parent, QString exec, QWidget* appMenuWidget);
+    AppMenu(QObject *execHolder,
+            PanelLocation panelLocation,
+            int panelThickness,
+            int screenWidth,
+            int screenHeight,
+            QFont font,
+            int buttonCoord1,
+            int buttonCoord2,
+            bool useTriangularTabs,
+            QString accent,
+            QString stylesheet,
+            double opacity,
+            QVariantList *favApps);
+    void setAppletUI(QObject *execHolder,
+                     PanelLocation panelLocation,
+                     int panelThickness,
+                     int screenWidth,
+                     int screenHeight,
+                     QFont font,
+                     int buttonCoord1,
+                     int buttonCoord2,
+                     bool useTriangularTabs,
+                     QString accent,
+                     QString stylesheet,
+                     double opacity);
+    App readDesktopEntry(QString desktopEntryPath);
+    void execApp(QObject *parent, QString exec);
+    void buildMenu(QListWidget *appsList, QString filter);
+    void buildFavMenu(QListWidget *favAppsList, QVariantList *favDesktopEntries);
 
-    void buildFavMenu(QListWidget* favListWidget, QVariantList favDesktopFiles);
+    QVBoxLayout *mMainLayout;
+    QTabWidget *mTabWidget;
+
+    QWidget *mAllAppsTab;
+    QVBoxLayout *mAllAppsLayout;
+    QLineEdit *mSearchBox;
+    QListWidget *mAppsList;
+
+    QWidget *mFavAppsTab;
+    QVBoxLayout *mFavAppsLayout;
+    QListWidget *mFavAppsList;
+
+    QWidget *mRunTab;
+    QVBoxLayout *mRunLayout;
+    QLabel *mRunLabel;
+    QLineEdit *mCmdLineEdit;
+    QPushButton *mRunPushButton;
+
+    QHash<QListWidgetItem*, QString> mExecByItem;
+    QVariantList *mFavApps;
+
+    ~AppMenu();
+
+signals:
+
 };
 
 #endif // APPMENU_H

@@ -10,7 +10,7 @@
 #include "panel.h"
 
 QJsonObject initConfig;
-QList<QWidget*> panels;
+QList<Panel*> panels;
 QList<WId> panelIDs;
 
 void Initializer::readConfig() {
@@ -78,13 +78,12 @@ void Initializer::reconfigurePanel() {
 
     panels.clear();
     panelIDs.clear();
-    if (initConfig.contains("panel1")) {
-        Panel* panel = new Panel(nullptr, this, &initConfig, 1);
-        panels.append(panel);
-        panelIDs.append(panel->winId());
-    }
-    if (initConfig.contains("panel2")) {
-        Panel* panel = new Panel(nullptr, this, &initConfig, 2);
+    for (int i = 1; i <= initConfig["countPanels"].toInt(); ++i) {
+        Panel* panel = new Panel(this,
+                                 &initConfig,
+                                 i,
+                                 mApp,
+                                 &panels);
         panels.append(panel);
         panelIDs.append(panel->winId());
     }
@@ -106,21 +105,23 @@ void Initializer::reconfigurePanel() {
     }
 }
 
-Initializer::Initializer() {
+Initializer::Initializer(QApplication* app) {
     readConfig();
+    mApp = app;
 
     panels.clear();
     panelIDs.clear();
-    if (initConfig.contains("panel1")) {
-        Panel* panel = new Panel(nullptr, this, &initConfig, 1);
+
+    for (int i = 1; i <= initConfig["countPanels"].toInt(); ++i) {
+        Panel* panel = new Panel(this,
+                                 &initConfig,
+                                 i,
+                                 mApp,
+                                 &panels);
         panels.append(panel);
         panelIDs.append(panel->winId());
     }
-    if (initConfig.contains("panel2")) {
-        Panel* panel = new Panel(nullptr, this, &initConfig, 2);
-        panels.append(panel);
-        panelIDs.append(panel->winId());
-    }
+
 
     // Moving panel on other workspaces - Bugfix #3
     this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, []() {

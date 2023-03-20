@@ -197,77 +197,101 @@ QWidget* MPRISApplet::createPlayerCard(QString serviceName,
     return playerCard;
 }
 
-QWidget* MPRISApplet::createUI(QString panelLocation,
-                               short panelHeight,
-                               QFont font,
-                               short buttonX,
-                               short buttonXRight,
-                               QString theme,
-                               qreal opacity,
-                               QString accent) {
-    QWidget* mprisWidget = new QWidget();
-    QVBoxLayout* mprisLayout = new QVBoxLayout(mprisWidget);
-    mprisLayout->setContentsMargins(0, 0, 0, 0);
-    mprisWidget->setObjectName("mprisApplet");
-
-    // Set window flags
-    mprisWidget->setWindowFlags(Qt::FramelessWindowHint |
-                                Qt::WindowStaysOnTopHint |
-                                Qt::X11BypassWindowManagerHint);
-
-
-    // Set geometry
-    QScreen* primaryScreen = QGuiApplication::primaryScreen();
-
-    int mprisWidth = 300;
-    int mprisHeight = 200;
-    int ax = 0, ay = 0;
-    if (panelLocation == "top") {
-        ay = panelHeight + 5;
-    }
-    else {
-        ay = primaryScreen->geometry().height() - panelHeight - mprisHeight - 5;
-    }
-    if (primaryScreen->geometry().width() - buttonX >= mprisWidth) {
-        ax = buttonX;
-    }
-    else {
-        ax = buttonXRight - mprisWidth;
-    }
-    mprisWidget->setFixedWidth(mprisWidth);
-    mprisWidget->setGeometry(ax, ay, mprisWidth, mprisHeight);
-
-    // Theme
-    QFile stylesheetReader("/usr/share/plainDE/styles/" + theme);
-    stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
-    QTextStream styleSheet(&stylesheetReader);
-    mprisWidget->setStyleSheet(styleSheet.readAll());
-
-    // Opacity
-    mprisWidget->setWindowOpacity(opacity);
-
-    // UI
+void MPRISApplet::setPlayerCards(QList<QWidget*>* mprisCards,
+                                 QFont font,
+                                 QString stylesheet,
+                                 QString accent) {
     QStringList dbusServices = QDBusConnection::sessionBus().interface()->registeredServiceNames().value();
     unsigned short countPlayers = 0;
     foreach (QString currentService, dbusServices) {
         if (currentService.startsWith("org.mpris.MediaPlayer2")) {
             ++countPlayers;
-            QWidget* currentPlayerCard = createPlayerCard(currentService, font, theme, accent);
-            mprisLayout->addWidget(currentPlayerCard);
+            QWidget* currentPlayerCard = createPlayerCard(currentService, font, stylesheet, accent);
+            mprisCards->append(currentPlayerCard);
+            this->layout()->addWidget(currentPlayerCard);
         }
     }
 
     if (countPlayers == 0) {
         QLabel* noPlayersLabel = new QLabel("Nothing is playing at the moment.");
-        noPlayersLabel->setStyleSheet(mprisWidget->styleSheet());
+        noPlayersLabel->setStyleSheet(this->styleSheet());
         noPlayersLabel->setFont(font);
         noPlayersLabel->setAlignment(Qt::AlignCenter);
-        mprisLayout->addWidget(noPlayersLabel);
+        mprisCards->append(noPlayersLabel);
+        this->layout()->addWidget(noPlayersLabel);
     }
-
-    return mprisWidget;
 }
 
-MPRISApplet::MPRISApplet() {
+void MPRISApplet::createUI(PanelLocation panelLocation,
+                           int panelThickness,
+                           int screenWidth,
+                           int screenHeight,
+                           int buttonCoord1,
+                           int buttonCoord2,
+                           QString theme,
+                           double opacity) {
+    QVBoxLayout* mprisLayout = new QVBoxLayout(this);
+    mprisLayout->setContentsMargins(0, 0, 0, 0);
+    this->setObjectName("mprisApplet");
 
+    // Set window flags
+    this->setWindowFlags(Qt::FramelessWindowHint |
+                         Qt::WindowStaysOnTopHint |
+                         Qt::X11BypassWindowManagerHint);
+
+
+    // Geometry
+    int width = 300, height = 200;
+    int ax = 0, ay = 0;
+    switch (panelLocation) {
+        case Top:
+            ax = (screenWidth - buttonCoord1 >= width) ? buttonCoord1 : buttonCoord2 - width;
+            ay = panelThickness + 5;
+        break;
+
+        case Bottom:
+            ax = (screenWidth - buttonCoord1 >= width) ? buttonCoord1 : buttonCoord2 - width;
+            ay = screenHeight - panelThickness - height - 5;
+        break;
+
+        case Left:
+            ax = panelThickness + 5;
+            ay = (screenHeight - buttonCoord1 >= height) ? buttonCoord1 : buttonCoord2 - height;
+        break;
+
+        case Right:
+            ax = screenWidth - panelThickness - width - 5;
+            ay = (screenHeight - buttonCoord1 >= height) ? buttonCoord1 : buttonCoord2 - height;
+        break;
+    }
+    this->setFixedSize(width, height);
+    this->move(ax, ay);
+
+
+    // Theme
+    QFile stylesheetReader("/usr/share/plainDE/styles/" + theme);
+    stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
+    QTextStream styleSheet(&stylesheetReader);
+    this->setStyleSheet(styleSheet.readAll());
+
+    // Opacity
+    this->setWindowOpacity(opacity);
+}
+
+MPRISApplet::MPRISApplet(PanelLocation panelLocation,
+                         int panelThickness,
+                         int screenWidth,
+                         int screenHeight,
+                         int buttonCoord1,
+                         int buttonCoord2,
+                         QString theme,
+                         double opacity) {
+    createUI(panelLocation,
+             panelThickness,
+             screenWidth,
+             screenHeight,
+             buttonCoord1,
+             buttonCoord2,
+             theme,
+             opacity);
 }

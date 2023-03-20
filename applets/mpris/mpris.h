@@ -10,9 +10,16 @@
 #include <QNetworkReply>
 #include <QVariantMap>
 
-class MPRISApplet {
+class MPRISApplet : public QWidget {
 public:
-    MPRISApplet();
+    MPRISApplet(PanelLocation panelLocation,
+                int panelThickness,
+                int screenWidth,
+                int screenHeight,
+                int buttonCoord1,
+                int buttonCoord2,
+                QString theme,
+                double opacity);
     QVariantMap getMetadata(QString playerService);
     QString getProperty(QString playerService,
                         QString playerPath,
@@ -37,15 +44,20 @@ public:
                               QFont font,
                               QString theme,
                               QString accent);
+    void setPlayerCards(QList<QWidget*>* mprisCards,
+                        QFont font,
+                        QString stylesheet,
+                        QString accent);
+    void createUI(PanelLocation panelLocation,
+                  int panelThickness,
+                  int screenWidth,
+                  int screenHeight,
+                  int buttonCoord1,
+                  int buttonCoord2,
+                  QString theme,
+                  double opacity);
 
-    QWidget* createUI(QString panelLocation,
-                      short panelHeight,
-                      QFont font,
-                      short buttonX,
-                      short buttonXRight,
-                      QString theme,
-                      qreal opacity,
-                      QString accent);
+    QList<QWidget*> mCards;
 
 public slots:
     void downloadFinished(QNetworkReply* reply);

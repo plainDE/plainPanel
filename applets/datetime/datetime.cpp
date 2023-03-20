@@ -2,53 +2,55 @@
 #include "../../panel.h"
 
 
-dateTimeUI DateTimeApplet::__createUI__(PanelLocation location, short panelHeight, QFont font,
-                                      short buttonX, short buttonXRight, Qt::DayOfWeek firstDay) {
-    QWidget* calendarWidget = new QWidget;
-
+void DateTimeApplet::createUI(Qt::DayOfWeek firstDay,
+                              PanelLocation panelLocation,
+                              QFont font,
+                              int panelThickness,
+                              int screenWidth,
+                              int screenHeight,
+                              int buttonCoord1,
+                              int buttonCoord2,
+                              double opacity) {
     // Window flags
-    calendarWidget->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint |
-                                   Qt::X11BypassWindowManagerHint);
+    this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
 
     // Geometry
-    QScreen* primaryScreen = QGuiApplication::primaryScreen();
+    int width = 300, height = 200;
+    int ax = 0, ay = 0;
+    switch (panelLocation) {
+        case Top:
+            ax = (screenWidth - buttonCoord1 >= width) ? buttonCoord1 : buttonCoord2 - width;
+            ay = panelThickness + 5;
+        break;
 
-    short calendarWidth = 300;
-    short calendarHeight = 200;
-    short ax = 0, ay = 0;
-    if (location == top) {
-        ay = panelHeight + 5;
+        case Bottom:
+            ax = (screenWidth - buttonCoord1 >= width) ? buttonCoord1 : buttonCoord2 - width;
+            ay = screenHeight - panelThickness - height - 5;
+        break;
+
+        case Left:
+            ax = panelThickness + 5;
+            ay = (screenHeight - buttonCoord1 >= height) ? buttonCoord1 : buttonCoord2 - height;
+        break;
+
+        case Right:
+            ax = screenWidth - panelThickness - width - 5;
+            ay = (screenHeight - buttonCoord1 >= height) ? buttonCoord1 : buttonCoord2 - height;
+        break;
     }
-    else {
-        ay = primaryScreen->geometry().height() - panelHeight - calendarHeight - 5;
-    }
-    if (primaryScreen->geometry().width() - buttonX >= calendarWidth) {
-        ax = buttonX;
-    }
-    else {
-        ax = buttonXRight - calendarWidth;
-    }
-    calendarWidget->setFixedSize(calendarWidth, calendarHeight);
-    calendarWidget->move(ax, ay);
+    this->setFixedSize(width, height);
+    this->move(ax, ay);
 
     // Set font
-    calendarWidget->setFont(font);
+    this->setFont(font);
 
-    // UI
-    QVBoxLayout* calendarWidgetLayout = new QVBoxLayout;
-    calendarWidgetLayout->setContentsMargins(1, 1, 1, 1);
-    calendarWidget->setLayout(calendarWidgetLayout);
+    // Set opacity
+    this->setWindowOpacity(opacity);
 
-    QCalendarWidget* calendar = new QCalendarWidget;
-    calendar->setGridVisible(true);
-    calendar->setFirstDayOfWeek(firstDay);
-    //calendar->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
-    calendarWidget->layout()->addWidget(calendar);
-
-
-    return {calendarWidget};
+    // Calendar-specific settings
+    this->setGridVisible(true);
+    this->setFirstDayOfWeek(firstDay);
 }
-
 
 QString DateTimeApplet::getCurrentTime(QString timeFormat) {
     return QTime::currentTime().toString(timeFormat);
@@ -58,10 +60,39 @@ QString DateTimeApplet::getCurrentDate(QString dateFormat) {
     return QDate::currentDate().toString(dateFormat);
 }
 
-QString DateTimeApplet::__getDisplayedData__(QString timeFormat, QString dateFormat) {
-    return DateTimeApplet::getCurrentDate(dateFormat) + " " + DateTimeApplet::getCurrentTime(timeFormat);
+QString DateTimeApplet::__getDisplayedData__(QString timeFormat, QString dateFormat, PanelLayout panelLayout) {
+    if (panelLayout == Horizontal) {
+        return DateTimeApplet::getCurrentDate(dateFormat) + " " + DateTimeApplet::getCurrentTime(timeFormat);
+    }
+    else {
+        return DateTimeApplet::getCurrentDate(dateFormat) + "\n" + DateTimeApplet::getCurrentTime(timeFormat);
+    }
 }
 
 QString DateTimeApplet::__getDisplayedData__(QString timeFormat) {
     return DateTimeApplet::getCurrentTime(timeFormat);
+}
+
+DateTimeApplet::DateTimeApplet(Qt::DayOfWeek firstDay,
+                               PanelLocation panelLocation,
+                               QFont font,
+                               int panelThickness,
+                               int screenWidth,
+                               int screenHeight,
+                               int buttonCoord1,
+                               int buttonCoord2,
+                               double opacity) {
+    createUI(firstDay,
+             panelLocation,
+             font,
+             panelThickness,
+             screenWidth,
+             screenHeight,
+             buttonCoord1,
+             buttonCoord2,
+             opacity);
+}
+
+DateTimeApplet::~DateTimeApplet() {
+
 }
