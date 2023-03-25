@@ -32,7 +32,6 @@ Battery mLastBatteryState;
 Battery mBatteryState;
 
 qint8 visibleDesktop;
-qint8 countWorkspaces;
 
 SNITray* sniTray;
 QDBusMessage msg;
@@ -233,6 +232,9 @@ void Panel::setPanelGeometry() {
     qDebug() << this->geometry().x() << this->geometry().y();
     qDebug() << ax << ay;
     qDebug() << mPanelWidth << mPanelHeight;
+
+    // Get amount of workspaces
+    mCountWorkspaces = KWindowSystem::numberOfDesktops();
 }
 
 // Only Time
@@ -389,7 +391,7 @@ void Panel::accentActiveWindow() {
 void Panel::updateWorkspaces() {
     visibleDesktop = KWindowSystem::currentDesktop();
     if (mPanelLayout == Horizontal) {
-        for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
+        for (qint8 workspace = 0; workspace < mCountWorkspaces; ++workspace) {
             if ((workspace+1) == visibleDesktop) {
                 mAppletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
                             "background-color: " + mAccentColor + "; color: #ffffff;");
@@ -614,22 +616,14 @@ void Panel::setRepeatingActions() {
 
             this->connect(sniPushButton, &QPushButton::clicked, this, [this, service, sniPushButton]() {
                 qDebug() << "Activate";
-                msg = QDBusMessage::createMethodCall(service,
-                                                     "/StatusNotifierItem",
-                                                     "org.kde.StatusNotifierItem",
-                                                     "Activate");
-                QList<QVariant> args;
-                args.append(0);
-                args.append(0);
-
-                msg.setArguments(args);
-                panelSessionBus.call(msg);
+                QtConcurrent::run(sniTray, &SNITray::activate, service);
             });
         });
 
         this->connect(snw, &StatusNotifierWatcher::StatusNotifierItemUnregistered, this, [this, snw]() {
             QString service = snw->deletedItems.last();
             delete mSniWidgets[service];
+            mSniWidgets.remove(service);
         });
     }
 }
@@ -1114,7 +1108,7 @@ void Panel::addApplets() {
         }
 
         else if (applet == "workspaces") {
-            for (qint8 workspace = 0; workspace < countWorkspaces; ++workspace) {
+            for (qint8 workspace = 0; workspace < mCountWorkspaces; ++workspace) {
                 this->connect(static_cast<QPushButton*>(mAppletWidgets["workspace" + QString::number(workspace+1)]),
                         &QPushButton::clicked, this, [workspace]() {
                     KWindowSystem::setCurrentDesktop(workspace+1);

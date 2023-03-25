@@ -136,6 +136,8 @@ private:
 
     QHash<QString,QObject*> mOtherItems;
 
+    qint8 mCountWorkspaces;
+
     QString mIfname;
     QString mLastIP;
 
