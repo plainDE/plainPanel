@@ -99,6 +99,19 @@ void SNITray::setSNIIcon(QString service, QPushButton* sniPushButton) {
     }
 }
 
+void SNITray::activate(QString service) {
+    QDBusMessage message = QDBusMessage::createMethodCall(service,
+                                                          "/StatusNotifierItem",
+                                                          "org.kde.StatusNotifierItem",
+                                                          "Activate");
+    QList<QVariant> args;
+    args.append(0);
+    args.append(0);
+
+    message.setArguments(args);
+    sessionBus.call(message);
+}
+
 SNITray::SNITray() {
     init();
     mWinIDs = new QList<WId>;

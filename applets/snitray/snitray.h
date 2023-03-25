@@ -17,6 +17,7 @@ public:
     ~SNITray();
     void init();
     void setSNIIcon(QString service, QPushButton* sniPushButton);
+    void activate(QString service);
 
     StatusNotifierWatcher* mStatusNotifierWatcher;
     QList<WId>* mWinIDs;
