@@ -101,12 +101,12 @@ void Panel::setPanelGeometry() {
     mScreenHeight = mPrimaryScreen->size().height();
 
     // Panel should update geometry when primary screen resolution is changed
-    this->connect(mPrimaryScreen, &QScreen::virtualGeometryChanged, this, [this]() {
+    this->connect(mPrimaryScreen, &QScreen::orientationChanged, this, [this]() {
         qDebug() << "Screen resolution changed.";
         setPanelGeometry();
     });
 
-    this->connect(mPrimaryScreen, &QScreen::orientationChanged, this, [this]() {
+    this->connect(mPrimaryScreen, &QScreen::geometryChanged, this, [this]() {
         qDebug() << "Screen resolution changed.";
         setPanelGeometry();
     });
@@ -907,7 +907,16 @@ void Panel::addApplets() {
         else if (applet.toString().startsWith("launcher:")) {
             QStringList launcherData = applet.toString().split(':');
 
-            QString desktopEntryPath = "/usr/share/applications/" + launcherData[1];
+            QString desktopEntryPath;
+
+            if (QFile::exists("/usr/share/applications/" + launcherData[1])) {
+                desktopEntryPath = "/usr/share/applications/" + launcherData[1];
+            }
+            else {
+                QString homeDir = getenv("HOME");
+                desktopEntryPath = homeDir + "/.local/share/applications/" + launcherData[1];
+            }
+
             QString exec;
             QString iconPath;
             QString tooltipLabel;
@@ -943,8 +952,6 @@ void Panel::addApplets() {
             }
             launcherPushButton->setIconSize(QSize(iconSize, iconSize));
             launcherPushButton->setFlat(true);
-            launcherPushButton->setToolTip(tooltipLabel);
-            launcherPushButton->setToolTipDuration(10000);
             mAppletWidgets[applet.toString()] = launcherPushButton;
 
             this->connect(launcherPushButton, &QPushButton::clicked, this,

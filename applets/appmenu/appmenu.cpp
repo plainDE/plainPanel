@@ -76,9 +76,11 @@ void AppMenu::setAppletUI(QObject *execHolder,
     mSearchBox = new QLineEdit();
     mSearchBox->setPlaceholderText("🔎 " + tr("Search"));  // u+01f50e - magnifier icon
     mSearchBox->setClearButtonEnabled(true);
+    mSearchBox->setFont(font);
     mAllAppsLayout->addWidget(mSearchBox);
 
     mAppsList = new QListWidget();
+    mAppsList->setFont(font);
     mAppsList->setStyleSheet("QListView::item:selected { background-color: " + accent + "; color: #ffffff };");
     mAllAppsLayout->addWidget(mAppsList);
 
@@ -90,6 +92,7 @@ void AppMenu::setAppletUI(QObject *execHolder,
     mFavAppsLayout->setContentsMargins(4, 4, 4, 4);
 
     mFavAppsList = new QListWidget();
+    mFavAppsList->setFont(font);
     mFavAppsList->setStyleSheet("QListView::item:selected { background-color: " + accent + "; color: #ffffff };");
     mFavAppsLayout->addWidget(mFavAppsList);
 
@@ -200,18 +203,20 @@ void AppMenu::buildMenu(QListWidget *appsList, QString filter) {
     }
 
     QString homeDir = getenv("HOME");
-    appDir.cd(homeDir + "/.local/share/applications");
-    desktopEntriesList = appDir.entryList();
+    if (QDir(homeDir + "/.local/share/applications").exists()) {
+        appDir.cd(homeDir + "/.local/share/applications");
+        desktopEntriesList = appDir.entryList();
 
-    for (int i = 2; i < desktopEntriesList.length(); ++i) {
-        currentApp = readDesktopEntry(appDir.absoluteFilePath(desktopEntriesList[i]));
-        if (currentApp.display) {
-            if (currentApp.displayedName != "") {
-                if (currentApp.displayedName.contains(filter, Qt::CaseInsensitive)) {
-                    QListWidgetItem* item = new QListWidgetItem(currentApp.displayedName);
-                    item->setIcon(currentApp.icon);
-                    appsList->addItem(item);
-                    mExecByItem[item] = currentApp.exec;
+        for (int i = 2; i < desktopEntriesList.length(); ++i) {
+            currentApp = readDesktopEntry(appDir.absoluteFilePath(desktopEntriesList[i]));
+            if (currentApp.display) {
+                if (currentApp.displayedName != "") {
+                    if (currentApp.displayedName.contains(filter, Qt::CaseInsensitive)) {
+                        QListWidgetItem* item = new QListWidgetItem(currentApp.displayedName);
+                        item->setIcon(currentApp.icon);
+                        appsList->addItem(item);
+                        mExecByItem[item] = currentApp.exec;
+                    }
                 }
             }
         }
