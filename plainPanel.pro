@@ -2,6 +2,8 @@ QT       += core gui network KWindowSystem concurrent
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets dbus
 
+CONFIG += release
+
 CONFIG += c++11
 CONFIG += x11
 
