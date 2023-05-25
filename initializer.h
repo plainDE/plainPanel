@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QDBusAbstractAdaptor>
 #include <KWindowSystem>
+#include <QMessageBox>
 
 class Initializer : public QObject {
     Q_CLASSINFO("D-Bus Interface", "org.plainDE.actions");
@@ -12,6 +13,7 @@ class Initializer : public QObject {
 public:
     Initializer(QApplication* app);
     void readConfig();
+    void setxkbmap();
     QWidget* newPanel(qint8 number);
     void autostart();
     ~Initializer();

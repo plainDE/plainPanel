@@ -129,6 +129,7 @@ private:
 
     QBoxLayout* mWindowListLayout;
     QHash<WId,QString> titleByWId;
+    int mWindowListIconSize;
 
     QList<QWidget*>* mMprisCards;
 

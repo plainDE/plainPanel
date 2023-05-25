@@ -21,6 +21,7 @@ SOURCES += \
     applets/battery/battery.cpp \
     applets/datetime/datetime.cpp \
     applets/kblayout/kblayout.cpp \
+    applets/launcher/launcher.cpp \
     applets/localipv4/localipv4.cpp \
     applets/mpris/mpris.cpp \
     applets/snitray/snitray.cpp \
@@ -39,6 +40,7 @@ HEADERS += \
     applets/battery/battery.h \
     applets/datetime/datetime.h \
     applets/kblayout/kblayout.h \
+    applets/launcher/launcher.h \
     applets/localipv4/localipv4.h \
     applets/mpris/mpris.h \
     applets/snitray/snitray.h \

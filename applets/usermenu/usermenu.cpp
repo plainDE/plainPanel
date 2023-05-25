@@ -58,31 +58,31 @@ void UserMenu::createUI(Panel* parentPanel,
     // Opacity
     this->setWindowOpacity(opacity);
 
-    QVBoxLayout *userMenuLayout = new QVBoxLayout(this);
+    QVBoxLayout* userMenuLayout = new QVBoxLayout(this);
     userMenuLayout->setContentsMargins(1, 1, 1, 1);
 
-    QPushButton *settingsEntry = new QPushButton();
+    QPushButton* settingsEntry = new QPushButton();
     settingsEntry->setFlat(true);
     settingsEntry->setText(tr("Settings"));
     settingsEntry->setIcon(QIcon::fromTheme("preferences-system"));
     settingsEntry->setFont(font);
     userMenuLayout->addWidget(settingsEntry);
 
-    QPushButton *aboutEntry = new QPushButton();
+    QPushButton* aboutEntry = new QPushButton();
     aboutEntry->setFlat(true);
     aboutEntry->setText(tr("About plainDE"));
     aboutEntry->setIcon(QIcon::fromTheme("help-about"));
     aboutEntry->setFont(font);
     userMenuLayout->addWidget(aboutEntry);
 
-    QPushButton *logOutEntry = new QPushButton();
+    QPushButton* logOutEntry = new QPushButton();
     logOutEntry->setFlat(true);
     logOutEntry->setText(tr("Log Out"));
     logOutEntry->setIcon(QIcon::fromTheme("system-log-out"));
     logOutEntry->setFont(font);
     userMenuLayout->addWidget(logOutEntry);
 
-    QPushButton *suspendEntry = new QPushButton();
+    QPushButton* suspendEntry = new QPushButton();
     suspendEntry->setFlat(true);
     suspendEntry->setText(tr("Suspend"));
     suspendEntry->setIcon(QIcon::fromTheme("system-suspend"));

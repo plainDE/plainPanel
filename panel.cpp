@@ -6,6 +6,7 @@
 #include "applets/usermenu/usermenu.h"
 #include "applets/volume/volume.h"
 #include "applets/windowlist/windowlist.h"
+#include "applets/launcher/launcher.h"
 #include "applets/localipv4/localipv4.h"
 #include "applets/mpris/mpris.h"
 #include "applets/battery/battery.h"
@@ -289,6 +290,8 @@ void Panel::updateWinList() {
                 }
                 QPushButton* windowButton = new QPushButton(winName, this);
                 windowButton->setIcon(icon);
+                windowButton->setIconSize(QSize(mWindowListIconSize,
+                                                mWindowListIconSize));
                 windowButton->setFont(mPanelFont);
                 mWinWidgets[*it] = windowButton;
                 mWindowListLayout->addWidget(windowButton);
@@ -335,6 +338,8 @@ void Panel::updateWinList(bool) {
                 QPixmap icon = KWindowSystem::icon(*it, -1, mPanelThickness, true);
                 QPushButton* windowButton = new QPushButton(this);
                 windowButton->setIcon(icon);
+                windowButton->setIconSize(QSize(mWindowListIconSize,
+                                                mWindowListIconSize));
                 mWinWidgets[*it] = windowButton;
                 mWindowListLayout->addWidget(windowButton);
 
@@ -589,10 +594,10 @@ void Panel::setRepeatingActions() {
         updateBatteryTimer->setInterval(5000);
 
         if (mStylesheet.contains("dark")) {
-            this->connect(updateBatteryTimer, &QTimer::timeout, this, &Panel::updateBatteryState);
+            this->connect(updateBatteryTimer, &QTimer::timeout, this, &Panel::updateBatteryStateDark);
         }
         else {
-            this->connect(updateBatteryTimer, &QTimer::timeout, this, &Panel::updateBatteryStateDark);
+            this->connect(updateBatteryTimer, &QTimer::timeout, this, &Panel::updateBatteryState);
         }
 
         updateBatteryTimer->start();
@@ -772,7 +777,13 @@ void Panel::addApplets() {
                 userMenuPushButton->setText(getenv("USER"));
                 userMenuPushButton->setMaximumWidth(userMenuWidth);
             }
-            userMenuPushButton->setIcon(QIcon::fromTheme("computer"));
+            QString avatar = getConfigValue("avatar").toString();
+            if (avatar == "" || avatar == " " || !QFile::exists(avatar)) {
+                userMenuPushButton->setIcon(QIcon::fromTheme("computer"));
+            }
+            else {
+                userMenuPushButton->setIcon(QIcon(avatar));
+            }
 
             this->layout()->addWidget(userMenuPushButton);
         }
@@ -806,6 +817,7 @@ void Panel::addApplets() {
         }
 
         else if (applet == "windowlist") {
+            mWindowListIconSize = getConfigValue("winListIconSize").toInt();
             if (mPanelLayout == Horizontal) {
                 mWindowListLayout = new QHBoxLayout();
             }
@@ -905,63 +917,17 @@ void Panel::addApplets() {
         }
 
         else if (applet.toString().startsWith("launcher:")) {
-            QStringList launcherData = applet.toString().split(':');
+            int iconSize = getConfigValue(mPanelName, "launcherIconSize").toInt();
+            QString iconTheme = getConfigValue("iconTheme").toString();
+            Launcher* launcher = new Launcher(this,
+                                              applet.toString(),
+                                              iconSize,
+                                              iconTheme,
+                                              &mProcesses,
+                                              mExecHolder);
 
-            QString desktopEntryPath;
-
-            if (QFile::exists("/usr/share/applications/" + launcherData[1])) {
-                desktopEntryPath = "/usr/share/applications/" + launcherData[1];
-            }
-            else {
-                QString homeDir = getenv("HOME");
-                desktopEntryPath = homeDir + "/.local/share/applications/" + launcherData[1];
-            }
-
-            QString exec;
-            QString iconPath;
-            QString tooltipLabel;
-
-            QSettings desktopFileReader(desktopEntryPath, QSettings::IniFormat);
-            desktopFileReader.sync();
-            desktopFileReader.beginGroup("Desktop Entry");
-                exec = desktopFileReader.value("Exec").toString();
-                iconPath = desktopFileReader.value("Icon").toString();
-                tooltipLabel = desktopFileReader.value("Name").toString();
-            desktopFileReader.endGroup();
-
-            // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html#exec-variables
-            if (exec[exec.length()-2] == "%") {
-                exec.chop(2);
-            }
-
-            short iconSize;
-            iconSize = getConfigValue(mPanelName, "launcherIconSize").toInt();
-            //iconSize = (double)panelHeight / 1.45;
-
-            QPushButton* launcherPushButton = new QPushButton(this);
-            if (QIcon::hasThemeIcon(iconPath)) {
-                launcherPushButton->setIcon(QIcon::fromTheme(iconPath));
-            }
-            else {
-                if (QFile::exists(iconPath)) {
-                    launcherPushButton->setIcon(QIcon(iconPath));
-                }
-                else {
-                    launcherPushButton->setIcon(QIcon::fromTheme("dialog-question"));
-                }
-            }
-            launcherPushButton->setIconSize(QSize(iconSize, iconSize));
-            launcherPushButton->setFlat(true);
-            mAppletWidgets[applet.toString()] = launcherPushButton;
-
-            this->connect(launcherPushButton, &QPushButton::clicked, this,
-                          [this, exec]() {
-                QProcess* process = new QProcess(mExecHolder);
-                mProcesses.append(process);
-                process->start(exec);
-            });
-
-            this->layout()->addWidget(launcherPushButton);
+            mAppletWidgets[applet.toString()] = launcher;
+            this->layout()->addWidget(launcher);
         }
 
         else if (applet == "sni") {
@@ -1068,6 +1034,7 @@ void Panel::addApplets() {
                 buttonCoord1 = mAppletWidgets["userMenuPushButton"]->y() + mAxisShift;
                 buttonCoord2 = mAppletWidgets["userMenuPushButton"]->geometry().bottomRight().y() + mAxisShift;
             }
+
             mUserMenu = new UserMenu(this,
                                      mExecHolder,
                                      mPanelLocation,
@@ -1365,7 +1332,9 @@ Panel::Panel(QObject* parent,
     this->connect(mUserMenu, &UserMenu::panelShouldQuit, this, [this]() {
         // Some cleaning
         foreach (QProcess* process, mProcesses) {
-            delete process;
+            if (process != NULL) {
+                delete process;
+            }
         }
         mProcesses.clear();
 

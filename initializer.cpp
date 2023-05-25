@@ -35,6 +35,64 @@ void Initializer::readConfig() {
     initConfig = QJsonDocument::fromJson(data.toUtf8()).object();
 }
 
+void Initializer::setxkbmap() {
+    // setxkbmap
+    qDebug() << initConfig["kbLayouts"].toVariant().toStringList();
+    if (!initConfig["kbLayouts"].toVariant().toStringList().isEmpty() &&
+        !initConfig["kbLayoutToggle"].toString().isEmpty()) {
+        QProcess* setxkbmapProcess = new QProcess(this);
+        QString kbLayouts = initConfig["kbLayouts"].toString().toLower();
+        QString kbLayoutToggle = initConfig["kbLayoutToggle"].toString().toLower();
+
+        QString finalKbLayouts = "";
+        QString finalKbLayoutToggle = "";
+        bool illegalCharacterEncountered = false;
+        foreach (QChar c, kbLayouts) {
+            // a~z + comma
+            if ((c.unicode() >= 97 && c.unicode() <= 122) ||
+                (c.unicode() == 44)) {
+                finalKbLayouts += c;
+            }
+            else {
+                illegalCharacterEncountered = true;
+                break;
+            }
+        }
+
+        foreach (QChar c, kbLayoutToggle) {
+            // a~z + underscore + colon
+            if ((c.unicode() >= 97 && c.unicode() <= 122) ||
+                (c.unicode() == 95) ||
+                (c.unicode() == 58)) {
+                finalKbLayoutToggle += c;
+            }
+            else {
+                illegalCharacterEncountered = true;
+                break;
+            }
+        }
+
+        if (illegalCharacterEncountered) {
+            QMessageBox warning;
+            warning.setText("An illegal character has been encountered. "
+                            "Please check ~/.config/plainDE/config.json "
+                            "kbLayout and kbLayoutToggle entries. "
+                            "Sanitizer result: " +
+                            finalKbLayouts + " for kbLayouts and " +
+                            finalKbLayoutToggle + " for kbLayoutToggle.");
+            warning.exec();
+        }
+
+        setxkbmapProcess->start("setxkbmap", {"-layout",
+                                              finalKbLayouts,
+                                              "-option",
+                                              finalKbLayoutToggle});
+
+        initConfig["kbLayouts"] = QJsonValue(finalKbLayouts);
+        initConfig["kbLayoutToggle"] = QJsonValue(finalKbLayoutToggle);
+    }
+}
+
 void Initializer::autostart() {
     QStringList autostartEntries = initConfig["autostart"].toVariant().toStringList();
     QString pathToCurrentDesktopFile = "";
@@ -42,6 +100,10 @@ void Initializer::autostart() {
 
     foreach (QString entry, autostartEntries) {
         pathToCurrentDesktopFile = "/usr/share/applications/" + entry;
+        if (!QFile::exists(pathToCurrentDesktopFile)) {
+            QString homeDir = getenv("HOME");
+            pathToCurrentDesktopFile = homeDir + "/.local/share/applications/" + entry;
+        }
 
         QSettings desktopFileReader(pathToCurrentDesktopFile, QSettings::IniFormat);
         desktopFileReader.sync();
@@ -57,16 +119,6 @@ void Initializer::autostart() {
         QProcess* process = new QProcess(this);
         process->start(exec);
     }
-
-
-    // setxkbmap
-    qDebug() << initConfig["kbLayouts"].toVariant().toStringList();
-    if (!initConfig["kbLayouts"].toVariant().toStringList().isEmpty() &&
-        !initConfig["kbLayoutToggle"].toString().isEmpty()) {
-        QProcess* setxkbmapProcess = new QProcess(this);
-        setxkbmapProcess->start("setxkbmap -layout " + initConfig["kbLayouts"].toString() +
-                                " -option " + initConfig["kbLayoutToggle"].toString());
-    }
 }
 
 void Initializer::reconfigurePanel() {
@@ -75,6 +127,7 @@ void Initializer::reconfigurePanel() {
     }
 
     readConfig();
+    setxkbmap();
 
     panels.clear();
     panelIDs.clear();
@@ -96,19 +149,11 @@ void Initializer::reconfigurePanel() {
             KWindowSystem::setOnDesktop(id, KWindowSystem::currentDesktop());
         }
     });
-
-    // setxkbmap
-    qDebug() << initConfig["kbLayouts"].toVariant().toStringList();
-    if (!initConfig["kbLayouts"].toVariant().toStringList().isEmpty() &&
-        !initConfig["kbLayoutToggle"].toString().isEmpty()) {
-        QProcess* setxkbmapProcess = new QProcess(this);
-        setxkbmapProcess->start("setxkbmap -layout " + initConfig["kbLayouts"].toString() +
-                                " -option " + initConfig["kbLayoutToggle"].toString());
-    }
 }
 
 Initializer::Initializer(QApplication* app) {
     readConfig();
+    setxkbmap();
     mApp = app;
 
     panels.clear();
