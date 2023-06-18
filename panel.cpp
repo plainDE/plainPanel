@@ -48,7 +48,7 @@ QJsonValue Panel::getConfigValue(QString section, QString key) {
 }
 
 void Panel::setPanelFlags() {
-    this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    //this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     this->setAttribute(Qt::WA_X11NetWmWindowTypeDock);
 }
 
