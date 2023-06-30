@@ -15,7 +15,7 @@ void DateTimeApplet::createUI(Qt::DayOfWeek firstDay,
     this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
 
     // Geometry
-    int width = 300, height = 200;
+    int width = 340, height = 250;
     int ax = 0, ay = 0;
     switch (panelLocation) {
         case Top:
@@ -38,8 +38,9 @@ void DateTimeApplet::createUI(Qt::DayOfWeek firstDay,
             ay = (screenHeight - buttonCoord1 >= height) ? buttonCoord1 : buttonCoord2 - height;
         break;
     }
-    this->setFixedSize(width, height);
-    this->move(ax, ay);
+    this->setGeometry(ax, ay, width, height);
+    //this->setFixedSize(width, height);
+    //this->move(ax, ay);
 
     // Set font
     this->setFont(font);

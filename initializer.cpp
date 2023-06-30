@@ -171,7 +171,6 @@ Initializer::Initializer(QApplication* app) {
         }
     }
 
-
     // Moving panel on other workspaces - Bugfix #3
     this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, []() {
         foreach (WId id, panelIDs) {

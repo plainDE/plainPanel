@@ -21,7 +21,7 @@ void SNITray::setSNIIcon(QString service, QPushButton* sniPushButton) {
         }
 
         // If there is no IconName, we try to get IconPixmap
-        if (!iconName.isEmpty()) {
+        if (!iconName.isEmpty() && QIcon::hasThemeIcon(iconName)) {
             sniPushButton->setIcon(QIcon::fromTheme(iconName));
         }
         else {
@@ -89,7 +89,7 @@ void SNITray::setSNIIcon(QString service, QPushButton* sniPushButton) {
                     if (found) {
                         break;
                     }
-                    QThread::sleep(1);
+                    QThread::sleep(2);
                 }
             }
         }

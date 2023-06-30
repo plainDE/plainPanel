@@ -264,8 +264,10 @@ void MPRISApplet::createUI(PanelLocation panelLocation,
             ay = (screenHeight - buttonCoord1 >= height) ? buttonCoord1 : buttonCoord2 - height;
         break;
     }
-    this->setFixedSize(width, height);
-    this->move(ax, ay);
+    this->setFixedWidth(width);
+    this->setGeometry(ax, ay, width, height);
+    //this->setFixedSize(width, height);
+    //this->move(ax, ay);
 
 
     // Theme

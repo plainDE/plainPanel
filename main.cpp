@@ -1,4 +1,5 @@
 #include "initializer.h"
+#include "panel.h"
 
 #include <QApplication>
 #include <QFile>

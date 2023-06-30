@@ -66,7 +66,6 @@ enum AnimationType {
 class Panel : public QWidget {
     Q_OBJECT
 
-
 public:
     Panel(QObject *parent = nullptr,
           QJsonObject* config = nullptr,

@@ -11,7 +11,7 @@
 #include "applets/mpris/mpris.h"
 #include "applets/battery/battery.h"
 #include "applets/snitray/snitray.h"
-
+#include "applets/clioutput/clioutput.h"
 
 AppMenu* mAppMenu;
 
@@ -21,6 +21,8 @@ QHash<WId,QPushButton*> mWinWidgets;
 DateTimeApplet* mDateTime;
 
 KbLayoutApplet mKbLayout;
+
+VolumeAdjustMethod mVolumeAdjustMethod;
 
 UserMenu* mUserMenu;
 
@@ -35,6 +37,9 @@ Battery mBatteryState;
 qint8 visibleDesktop;
 
 SNITray* sniTray;
+
+QList<CLIOutputApplet*> cliOutputAppletsList;
+
 QDBusMessage msg;
 QDBusConnection panelSessionBus = QDBusConnection::sessionBus();
 
@@ -50,6 +55,7 @@ QJsonValue Panel::getConfigValue(QString section, QString key) {
 void Panel::setPanelFlags() {
     //this->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
     this->setAttribute(Qt::WA_X11NetWmWindowTypeDock);
+    this->setAttribute(Qt::WA_AlwaysShowToolTips);
 }
 
 PanelInterference Panel::checkPanelsInterference(PanelLocation loc1, PanelLocation loc2) {
@@ -234,6 +240,8 @@ void Panel::setPanelGeometry() {
     qDebug() << ax << ay;
     qDebug() << mPanelWidth << mPanelHeight;
 
+    KWindowSystem::setOnAllDesktops(mPanelWId, true);
+
     // Get amount of workspaces
     mCountWorkspaces = KWindowSystem::numberOfDesktops();
 }
@@ -260,6 +268,7 @@ void Panel::updateKbLayout() {
 void Panel::updateKbLayout(bool) {
     static_cast<QPushButton*>(mAppletWidgets["layoutIndicator"])->setIcon(
                 mKbLayout.getCurrentFlag());
+    mAppletWidgets["layoutIndicator"]->setToolTip(mKbLayout.getCurrentKbLayout());
 }
 
 void Panel::shortenTitle(QString* src, QPushButton* button) {
@@ -309,7 +318,8 @@ void Panel::updateWinList() {
             else {
                 if (desktopInfo.isOnCurrentDesktop()) {
                     KWindowInfo nameInfo(*it, NET::WMName);
-                    QString newName = nameInfo.name();;
+                    QString newName = nameInfo.name();
+                    mWinWidgets[*it]->setToolTip(newName);
                     unsigned short sz = newName.length();
                     newName.truncate(12);
                     if (newName.length() < sz) {
@@ -445,9 +455,16 @@ void Panel::updateBatteryState() {
 
     }
     if (QString::compare(mBatteryState.iconName, mLastBatteryState.iconName)) {
-        static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->setPixmap(
-                    QIcon("/usr/share/plainDE/icons/" + mBatteryState.iconName).pixmap(
-                        mBatteryIconSize, mBatteryIconSize));
+        if (!mBatteryState.iconName.contains("caution")) {
+            static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->clear();
+            static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->setPixmap(
+                QIcon("/usr/share/plainDE/icons/" + mBatteryState.iconName).pixmap(
+                    mBatteryIconSize, mBatteryIconSize));
+        }
+        else {
+            static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->clear();
+            static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->setText("❗"); // U+2757 - exclamation mark
+        }
     }
 }
 
@@ -631,6 +648,11 @@ void Panel::setRepeatingActions() {
             mSniWidgets.remove(service);
         });
     }
+
+    // CLI Output Applets
+    foreach (CLIOutputApplet* applet, cliOutputAppletsList) {
+        applet->activate();
+    }
 }
 
 void Panel::setPanelUI() {
@@ -663,6 +685,9 @@ void Panel::setPanelUI() {
     QTextStream styleSheet(&stylesheetReader);
     this->setStyleSheet(styleSheet.readAll());
 
+    // Set tooltips font
+    //this->setStyleSheet(this->styleSheet() + " QToolTip { font-size: " + QString::number(mPanelFont.pointSize()) + "px; }");
+
     // Set accent
     mAccentColor = getConfigValue("accent").toString();
 
@@ -685,6 +710,9 @@ void Panel::addApplets() {
         if (applet == "appmenu") {
             QPushButton* appMenuPushButton = new QPushButton;
             appMenuPushButton->setFlat(true);
+            appMenuPushButton->setToolTip("List of installed applications");
+            int appMenuIconSize = getConfigValue("menuIconSize").toInt();
+            appMenuPushButton->setIconSize(QSize(appMenuIconSize, appMenuIconSize));
             this->layout()->addWidget(appMenuPushButton);
             mAppletWidgets["appMenuPushButton"] = appMenuPushButton;
 
@@ -768,6 +796,7 @@ void Panel::addApplets() {
 
         else if (applet == "usermenu") {
             QPushButton* userMenuPushButton = new QPushButton;
+            userMenuPushButton->setToolTip("Power & settings");
             userMenuPushButton->setFlat(true);
             mAppletWidgets["userMenuPushButton"] = userMenuPushButton;
             userMenuPushButton->setObjectName("userMenuPushButton");
@@ -789,9 +818,19 @@ void Panel::addApplets() {
         }
 
         else if (applet == "volume") {
+            if (!getConfigValue("volumeAdjustMethod").toString().compare("ALSA")) {
+                mVolumeAdjustMethod = ALSA;
+            }
+            else if (!getConfigValue("volumeAdjustMethod").toString().compare("PulseAudio")) {
+                mVolumeAdjustMethod = PulseAudio;
+            }
+
             QDial* volumeDial = new QDial;
             volumeDial->setMinimum(0);
             volumeDial->setMaximum(100);
+            if (getConfigValue("enableOveramplification").toBool() && mVolumeAdjustMethod == PulseAudio) {
+                volumeDial->setMaximum(150);
+            }
             volumeDial->setValue(50);
             if (mPanelLayout == Horizontal) {
                 volumeDial->setMaximumWidth(25);
@@ -810,7 +849,7 @@ void Panel::addApplets() {
             this->layout()->addWidget(volumeDial);
             this->layout()->addWidget(volumeLabel);
 
-            VolumeApplet::setVolume(50);
+            VolumeApplet::setVolume(50, mVolumeAdjustMethod);
 
             mAppletWidgets["volumeDial"] = volumeDial;
             mAppletWidgets["volumeLabel"] = volumeLabel;
@@ -890,6 +929,9 @@ void Panel::addApplets() {
             view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
             view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
+
+            view->setToolTip(mIfname);
+
             this->layout()->addWidget(view);
             mOtherItems["ipText"] = text;
             mOtherItems["ipView"] = view;
@@ -898,6 +940,7 @@ void Panel::addApplets() {
         else if (applet == "mpris") {
             short buttonWidth = mFontMetrics->horizontalAdvance("⏯") + 2;
             QPushButton* mprisPushButton = new QPushButton("⏯");  // U+23EF - play/pause
+            mprisPushButton->setToolTip("Playback control");
             if (mPanelLayout == Horizontal) {
                 mprisPushButton->setMaximumWidth(buttonWidth);
             }
@@ -909,8 +952,10 @@ void Panel::addApplets() {
         else if (applet == "battery") {
             mBatteryIconSize = (double)mPanelHeight / 1.45;
             QLabel* batteryIcon = new QLabel;
+            batteryIcon->setToolTip(mBatteryState.iconName);
             mAppletWidgets["batteryIcon"] = batteryIcon;
             QLabel* batteryLabel = new QLabel("100%");
+            batteryLabel->setToolTip(mBatteryState.iconName);
             mAppletWidgets["batteryLabel"] = batteryLabel;
             this->layout()->addWidget(batteryIcon);
             this->layout()->addWidget(batteryLabel);
@@ -938,6 +983,14 @@ void Panel::addApplets() {
                 mSNILayout = new QVBoxLayout();
             }
             mBoxLayout->addLayout(mSNILayout);
+        }
+
+        else if (applet.toString().startsWith("clioutput:")) {
+            QString appletName = applet.toString().split(':')[1];
+            auto cliOutputApplet = new CLIOutputApplet(this, appletName);
+            cliOutputAppletsList.append(cliOutputApplet);
+            mBoxLayout->addWidget(cliOutputApplet->mAppletButton);
+            mAppletWidgets[applet.toString()] = cliOutputApplet->mAppletButton;
         }
 
         else {
@@ -1016,11 +1069,10 @@ void Panel::addApplets() {
         else if (applet == "kblayout") {
             mKbLayout.__init__(getConfigValue("kbLayouts").toString().split(','));
             if (getConfigValue("useCountryFlag").toBool()) {
-                static_cast<QPushButton*>(mAppletWidgets["layoutIndicator"])->setIcon(
-                            QIcon(mKbLayout.getCurrentFlag()));
+                updateKbLayout(true);
             }
             else {
-                static_cast<QPushButton*>(mAppletWidgets["layoutIndicator"])->setText(mKbLayout.getCurrentKbLayout());
+                updateKbLayout();
             }
         }
 
@@ -1145,8 +1197,10 @@ void Panel::addApplets() {
         }
 
         else {
-            // No additional actions for spacer, splitter and launcher applet
-            if (applet != "spacer" && applet != "splitter" && !applet.toString().startsWith("launcher")) {
+            // No additional actions for spacer, splitter, launcher and clioutput applets
+            if (applet != "spacer" && applet != "splitter" &&
+                !applet.toString().startsWith("launcher") &&
+                !applet.toString().startsWith("clioutput")) {
                 qDebug() << "Unknown applet:" << applet;
             }
         }
@@ -1175,6 +1229,7 @@ void Panel::toggleAppMenu() {
 
 void Panel::toggleCalendar() {
     if (!mDateTime->isVisible()) {
+        mDateTime->setSelectedDate(QDate::currentDate());
         mDateTime->show();
     }
     else {
@@ -1210,7 +1265,7 @@ void Panel::toggleMPRIS() {
 
 void Panel::setVolume() {
     short newValue = static_cast<QDial*>(mAppletWidgets["volumeDial"])->value();
-    VolumeApplet::setVolume(newValue);
+    VolumeApplet::setVolume(newValue, mVolumeAdjustMethod);
     static_cast<QLabel*>(mAppletWidgets["volumeLabel"])->setText(QString::number(newValue) + "%");
 }
 
@@ -1280,7 +1335,6 @@ void Panel::animation(AnimationType type) {
                 emit animationFinished();
             });
         }
-
     }
 }
 

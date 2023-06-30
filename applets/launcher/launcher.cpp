@@ -50,6 +50,8 @@ Launcher::Launcher(Panel* parentPanel,
             }
         }
 
+        this->setToolTip(tooltipLabel);
+
         parentPanel->connect(this, &QPushButton::clicked, parentPanel,
                       [exec, execHolder, processes]() {
             QProcess* process = new QProcess(execHolder);
@@ -74,6 +76,7 @@ Launcher::Launcher(Panel* parentPanel,
             process->start(launcherData[1]);
         });
     }
+
 
     this->setIconSize(QSize(iconSize, iconSize));
     this->setFlat(true);
