@@ -49,7 +49,7 @@
   </ul>
   
   Any help is appreciated.
-  Email us at <a href="mailto:segfault@plainde.org">segfault@plainde.org</a>
+  Email us at <a href="mailto:highsierra.2007@gmail.com">highsierra.2007@gmail.com</a>
   
   <h2>Miscellaneous</h2>
   <b>Note</b>. Mint-Y is recommended icon theme (we use few Mint-Y-only icons).<br>
