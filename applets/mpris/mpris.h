@@ -9,6 +9,7 @@
 #include <QLabel>
 #include <QNetworkReply>
 #include <QVariantMap>
+#include <QtConcurrent>
 
 class MPRISApplet : public QWidget {
 public:

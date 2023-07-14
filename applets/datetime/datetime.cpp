@@ -5,6 +5,7 @@
 void DateTimeApplet::createUI(Qt::DayOfWeek firstDay,
                               PanelLocation panelLocation,
                               QFont font,
+                              bool showWeekNumbers,
                               int panelThickness,
                               int screenWidth,
                               int screenHeight,
@@ -51,6 +52,13 @@ void DateTimeApplet::createUI(Qt::DayOfWeek firstDay,
     // Calendar-specific settings
     this->setGridVisible(true);
     this->setFirstDayOfWeek(firstDay);
+
+    if (showWeekNumbers) {
+        this->setVerticalHeaderFormat(QCalendarWidget::ISOWeekNumbers);
+    }
+    else {
+        this->setVerticalHeaderFormat(QCalendarWidget::NoVerticalHeader);
+    }
 }
 
 QString DateTimeApplet::getCurrentTime(QString timeFormat) {
@@ -77,6 +85,7 @@ QString DateTimeApplet::__getDisplayedData__(QString timeFormat) {
 DateTimeApplet::DateTimeApplet(Qt::DayOfWeek firstDay,
                                PanelLocation panelLocation,
                                QFont font,
+                               bool showWeekNumbers,
                                int panelThickness,
                                int screenWidth,
                                int screenHeight,
@@ -86,6 +95,7 @@ DateTimeApplet::DateTimeApplet(Qt::DayOfWeek firstDay,
     createUI(firstDay,
              panelLocation,
              font,
+             showWeekNumbers,
              panelThickness,
              screenWidth,
              screenHeight,

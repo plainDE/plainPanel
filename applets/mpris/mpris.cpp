@@ -108,6 +108,7 @@ void MPRISApplet::previous(QString serviceName,
                                              "org.mpris.MediaPlayer2.Player",
                                              "Previous");
     bus.call(request);
+    QThread::sleep(1);
     updateIdentity(serviceName, iconLabel, titleLabel);
 }
 
@@ -119,6 +120,7 @@ void MPRISApplet::next(QString serviceName,
                                              "org.mpris.MediaPlayer2.Player",
                                              "Next");
     bus.call(request);
+    QThread::sleep(1);
     updateIdentity(serviceName, iconLabel, titleLabel);
 }
 
@@ -183,7 +185,8 @@ QWidget* MPRISApplet::createPlayerCard(QString serviceName,
 
     // Make connections
     playerCard->connect(previousPushButton, &QPushButton::clicked, playerCard, [this, serviceName, iconLabel, titleLabel]() {
-        this->previous(serviceName, iconLabel, titleLabel);
+        QtConcurrent::run(this, &MPRISApplet::previous, serviceName, iconLabel, titleLabel);
+        //this->previous(serviceName, iconLabel, titleLabel);
     });
 
     playerCard->connect(playPausePushButton, &QPushButton::clicked, playerCard, [this, serviceName, iconLabel, titleLabel]() {
@@ -191,7 +194,8 @@ QWidget* MPRISApplet::createPlayerCard(QString serviceName,
     });
 
     playerCard->connect(nextPushButton, &QPushButton::clicked, playerCard, [this, serviceName, iconLabel, titleLabel] {
-        this->next(serviceName, iconLabel, titleLabel);
+        QtConcurrent::run(this, &MPRISApplet::next, serviceName, iconLabel, titleLabel);
+        //this->next(serviceName, iconLabel, titleLabel);
     });
 
     return playerCard;

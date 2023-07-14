@@ -149,6 +149,8 @@ private:
     QBoxLayout* mSNILayout;
     QHash<QString,QPushButton*> mSniWidgets;
 
+    bool mHasCLIOutputApplet = false;
+
 signals:
     void animationFinished();
     void winListUpdateRequired();
@@ -158,6 +160,7 @@ public slots:
     void toggleCalendar();
     void toggleUserMenu();
     void toggleMPRIS();
+    void setOnCurrentDesktop();
 
 private slots:
     // updating applets data

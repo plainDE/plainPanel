@@ -11,7 +11,6 @@
 
 QJsonObject initConfig;
 QList<Panel*> panels;
-QList<WId> panelIDs;
 
 void Initializer::readConfig() {
     // set globally readable variable for reading settings
@@ -122,7 +121,7 @@ void Initializer::autostart() {
 }
 
 void Initializer::reconfigurePanel() {
-    foreach (QWidget* panel, panels) {
+    foreach (Panel* panel, panels) {
         delete panel;
     }
 
@@ -130,7 +129,6 @@ void Initializer::reconfigurePanel() {
     setxkbmap();
 
     panels.clear();
-    panelIDs.clear();
     for (int i = 1; i <= initConfig["countPanels"].toInt(); ++i) {
         if (!initConfig["panel" + QString::number(i)].isNull()) {
             Panel* panel = new Panel(this,
@@ -139,16 +137,11 @@ void Initializer::reconfigurePanel() {
                                      mApp,
                                      panels);
             panels.append(panel);
-            panelIDs.append(panel->winId());
+
+            // Moving panel on other workspaces - Bugfix #3
+            panel->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, panel, &Panel::setOnCurrentDesktop);
         }
     }
-
-    // Moving panel on other workspaces - Bugfix #3
-    this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, []() {
-        foreach (WId id, panelIDs) {
-            KWindowSystem::setOnDesktop(id, KWindowSystem::currentDesktop());
-        }
-    });
 }
 
 Initializer::Initializer(QApplication* app) {
@@ -157,7 +150,6 @@ Initializer::Initializer(QApplication* app) {
     mApp = app;
 
     panels.clear();
-    panelIDs.clear();
 
     for (int i = 1; i <= initConfig["countPanels"].toInt(); ++i) {
         if (!initConfig["panel" + QString::number(i)].isNull()) {
@@ -167,17 +159,11 @@ Initializer::Initializer(QApplication* app) {
                                      mApp,
                                      panels);
             panels.append(panel);
-            panelIDs.append(panel->winId());
+
+            // Moving panel on other workspaces - Bugfix #3
+            panel->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, panel, &Panel::setOnCurrentDesktop);
         }
     }
-
-    // Moving panel on other workspaces - Bugfix #3
-    this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, []() {
-        foreach (WId id, panelIDs) {
-            KWindowSystem::setOnDesktop(id, KWindowSystem::currentDesktop());
-        }
-    });
-
     autostart();
 
     DBusIntegration db("org.plainDE.plainPanel", "/Actions", "org.plainDE.actions", this);

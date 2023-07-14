@@ -11,7 +11,7 @@ class Initializer : public QObject {
     Q_OBJECT
 
 public:
-    Initializer(QApplication* app);
+    Initializer(QApplication* app = nullptr);
     void readConfig();
     void setxkbmap();
     QWidget* newPanel(qint8 number);

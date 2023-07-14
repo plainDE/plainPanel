@@ -345,11 +345,14 @@ void Panel::updateWinList(bool) {
         if (pIDInfo.pid() != mPanelPID) {
             KWindowInfo desktopInfo(*it, NET::WMDesktop);
             if (!mWinWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
+                KWindowInfo nameInfo(*it, NET::WMName);
                 QPixmap icon = KWindowSystem::icon(*it, -1, mPanelThickness, true);
+                QString winName = nameInfo.name();
                 QPushButton* windowButton = new QPushButton(this);
                 windowButton->setIcon(icon);
                 windowButton->setIconSize(QSize(mWindowListIconSize,
                                                 mWindowListIconSize));
+                windowButton->setToolTip(winName);
                 mWinWidgets[*it] = windowButton;
                 mWindowListLayout->addWidget(windowButton);
 
@@ -398,22 +401,22 @@ void Panel::accentActiveWindow() {
         button->setStyleSheet("");
     }
     if (activeWinID != 0 && mWinWidgets.contains(activeWinID)) {
-        mWinWidgets[activeWinID]->setStyleSheet("background-color: " + mAccentColor + "; color: #ffffff;");
+        QString buttonStyle = QString("background-color: %1; color: #ffffff;").arg(mAccentColor);
+        mWinWidgets[activeWinID]->setStyleSheet(buttonStyle);
     }
-
 }
 
 void Panel::updateWorkspaces() {
     visibleDesktop = KWindowSystem::currentDesktop();
     if (mPanelLayout == Horizontal) {
         for (qint8 workspace = 0; workspace < mCountWorkspaces; ++workspace) {
+            QString buttonName = QString("workspace%1").arg(workspace+1);
             if ((workspace+1) == visibleDesktop) {
-                mAppletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
-                            "background-color: " + mAccentColor + "; color: #ffffff;");
+                QString buttonStyle = QString("background-color: %1; color: #ffffff;").arg(mAccentColor);
+                mAppletWidgets[buttonName]->setStyleSheet(buttonStyle);
             }
             else {
-                mAppletWidgets["workspace" + QString::number(workspace+1)]->setStyleSheet(
-                            "background-color: #9a9996; color: #000000;");
+                mAppletWidgets[buttonName]->setStyleSheet("background-color: #9a9996; color: #000000;");
             }
         }
     }
@@ -448,18 +451,19 @@ void Panel::updateLocalIPv4() {
 
 void Panel::updateBatteryState() {
     mBatteryState = mBatteryApplet->getBatteryState(mBatteryName);
-
     if (mBatteryState.percentage != mLastBatteryState.percentage) {
         static_cast<QLabel*>(mAppletWidgets["batteryLabel"])->setText(
                     QString::number(mBatteryState.percentage) + "%");
 
     }
     if (QString::compare(mBatteryState.iconName, mLastBatteryState.iconName)) {
+
         if (!mBatteryState.iconName.contains("caution")) {
             static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->clear();
+            QString iconPath = QString("/usr/share/plainDE/icons/%1").arg(mBatteryState.iconName);
             static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->setPixmap(
-                QIcon("/usr/share/plainDE/icons/" + mBatteryState.iconName).pixmap(
-                    mBatteryIconSize, mBatteryIconSize));
+                QIcon(iconPath).pixmap(mBatteryIconSize, mBatteryIconSize)
+            );
         }
         else {
             static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->clear();
@@ -477,9 +481,16 @@ void Panel::updateBatteryStateDark() {
 
     }
     if (QString::compare(mBatteryState.iconName, mLastBatteryState.iconName)) {
-        static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->setPixmap(
-                    QIcon("/usr/share/plainDE/icons/" + mBatteryState.iconName + "-dark").pixmap(
-                        mBatteryIconSize, mBatteryIconSize));
+        if (!mBatteryState.iconName.contains("caution")) {
+            QString iconPath = QString("/usr/share/plainDE/icons/%1-dark").arg(mBatteryState.iconName);
+            static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->setPixmap(
+                QIcon(iconPath).pixmap(mBatteryIconSize, mBatteryIconSize)
+            );
+        }
+        else {
+            static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->clear();
+            static_cast<QLabel*>(mAppletWidgets["batteryIcon"])->setText("❗"); // U+2757 - exclamation mark
+        }
     }
 }
 
@@ -552,7 +563,7 @@ void Panel::setRepeatingActions() {
     // Window list applet
     if (mActiveAppletsList.contains("windowlist")) {
         if (!QString::compare(getenv("XDG_SESSION_TYPE"), "x11", Qt::CaseInsensitive)) {
-            if (mPanelLayout == Horizontal) {
+            if (mPanelLayout == Horizontal && getConfigValue("winListShowTitles").toBool()) {
                 this->connect(KWindowSystem::self(), &KWindowSystem::windowAdded, this, [this]() {
                     updateWinList();
                 });
@@ -564,7 +575,7 @@ void Panel::setRepeatingActions() {
             }
             this->connect(KWindowSystem::self(), &KWindowSystem::activeWindowChanged, this, &Panel::accentActiveWindow);
 
-            if (mPanelLayout == Horizontal) {
+            if (mPanelLayout == Horizontal && getConfigValue("winListShowTitles").toBool()) {
                 this->connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, [this]() {
                     this->updateWinList();
                 });
@@ -576,7 +587,7 @@ void Panel::setRepeatingActions() {
             }
             QTimer* updateTitleTimer = new QTimer(this);
             updateTitleTimer->setInterval(1500);
-            if (mPanelLayout == Horizontal) {
+            if (mPanelLayout == Horizontal && getConfigValue("winListShowTitles").toBool()) {
                 this->connect(updateTitleTimer, &QTimer::timeout, this, [this]() {
                     this->updateWinTitles();
                 });
@@ -625,7 +636,7 @@ void Panel::setRepeatingActions() {
     if (mActiveAppletsList.contains("sni")) {
         StatusNotifierWatcher* snw = sniTray->mStatusNotifierWatcher;
         this->connect(snw, &StatusNotifierWatcher::StatusNotifierItemRegistered, this, [this, snw]() {
-            QString service = snw->registeredStatusNotifierItems().last();
+            QString service = snw->registeredStatusNotifierItems().constLast();
             qDebug() << "Adding icon to SNI layout..." << service;
 
             QPushButton* sniPushButton = new QPushButton(this);
@@ -633,6 +644,20 @@ void Panel::setRepeatingActions() {
             sniPushButton->setIcon(QIcon::fromTheme("dialog-question"));
             mSniWidgets[service] = sniPushButton;
             mSNILayout->addWidget(sniPushButton);
+
+            // https://github.com/openwebos/qt/blob/master/tools/qdbus/qdbus/qdbus.cpp
+            QDBusInterface iface(service, "/StatusNotifierItem", "org.freedesktop.DBus.Properties");
+            QDBusMessage response = iface.call("Get", "org.kde.StatusNotifierItem", "ToolTip");
+            QString tooltip;
+            foreach (QVariant v, response.arguments()) {
+                if (v.userType() == qMetaTypeId<QDBusVariant>()) {
+                    tooltip = qvariant_cast<QDBusVariant>(v).variant().toString();
+                    break;
+                }
+            }
+            if (tooltip.isEmpty()) {
+                tooltip = service;
+            }
 
             QtConcurrent::run(sniTray, &SNITray::setSNIIcon, service, sniPushButton);
 
@@ -650,9 +675,13 @@ void Panel::setRepeatingActions() {
     }
 
     // CLI Output Applets
-    foreach (CLIOutputApplet* applet, cliOutputAppletsList) {
-        applet->activate();
+    if (mHasCLIOutputApplet) {
+        foreach (CLIOutputApplet* applet, cliOutputAppletsList) {
+            applet->activate();
+            mActiveTimers.append(applet->mTimer);
+        }
     }
+
 }
 
 void Panel::setPanelUI() {
@@ -680,7 +709,8 @@ void Panel::setPanelUI() {
 
     // Set theme
     mStylesheet = getConfigValue("theme").toString();
-    QFile stylesheetReader("/usr/share/plainDE/styles/" + mStylesheet);
+    QString stylesheetPath = QString("/usr/share/plainDE/styles/%1").arg(mStylesheet);
+    QFile stylesheetReader(stylesheetPath);
     stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
     QTextStream styleSheet(&stylesheetReader);
     this->setStyleSheet(styleSheet.readAll());
@@ -727,7 +757,7 @@ void Panel::addApplets() {
             if (mPanelLayout == Horizontal) {
                 QString menuText = getConfigValue("menuText").toString();
                 if (!menuText.isEmpty()) {
-                    appMenuPushButton->setText(" " + menuText);
+                    appMenuPushButton->setText(QString(" %1").arg(menuText));
                 }
             }
         }
@@ -873,10 +903,12 @@ void Panel::addApplets() {
                     QPushButton* currentWorkspace = new QPushButton(QString::number(workspace+1));
                     currentWorkspace->setMaximumWidth(mFontMetrics->horizontalAdvance("100"));
                     currentWorkspace->setStyleSheet("background-color: #9a9996; color: #000000;");
-                    mAppletWidgets["workspace" + QString::number(workspace+1)] = currentWorkspace;
+                    QString buttonName = QString("workspace%1").arg(workspace+1);
+                    mAppletWidgets[buttonName] = currentWorkspace;
 
                     if (KWindowSystem::currentDesktop() == workspace+1) {
-                        currentWorkspace->setStyleSheet("background-color: " + mAccentColor + "; color: #ffffff;");
+                        QString buttonStyle = QString("background-color: %1; color: #ffffff;").arg(mAccentColor);
+                        currentWorkspace->setStyleSheet(buttonStyle);
                     }
                     this->layout()->addWidget(currentWorkspace);
                 }
@@ -884,7 +916,8 @@ void Panel::addApplets() {
             else {
                 QPushButton* currentWorkspace = new QPushButton(QString::number(KWindowSystem::currentDesktop()));
                 currentWorkspace->setMaximumHeight(mPanelThickness - 2);
-                currentWorkspace->setStyleSheet("background-color: " + mAccentColor + "; color: #ffffff;");
+                QString buttonStyle = QString("background-color: %1; color: #ffffff;").arg(mAccentColor);
+                currentWorkspace->setStyleSheet(buttonStyle);
                 mAppletWidgets["workspace"] = currentWorkspace;
                 this->layout()->addWidget(currentWorkspace);
             }
@@ -986,11 +1019,11 @@ void Panel::addApplets() {
         }
 
         else if (applet.toString().startsWith("clioutput:")) {
+            mHasCLIOutputApplet = true;
             QString appletName = applet.toString().split(':')[1];
-            auto cliOutputApplet = new CLIOutputApplet(this, appletName);
+            auto cliOutputApplet = new CLIOutputApplet(mExecHolder, appletName);
             cliOutputAppletsList.append(cliOutputApplet);
-            mBoxLayout->addWidget(cliOutputApplet->mAppletButton);
-            mAppletWidgets[applet.toString()] = cliOutputApplet->mAppletButton;
+            mBoxLayout->addWidget(cliOutputApplet);
         }
 
         else {
@@ -1053,6 +1086,7 @@ void Panel::addApplets() {
             mDateTime = new DateTimeApplet(day,
                                            mPanelLocation,
                                            mPanelFont,
+                                           getConfigValue("showWeekNumbers").toBool(),
                                            mPanelThickness,
                                            mScreenWidth,
                                            mScreenHeight,
@@ -1124,7 +1158,7 @@ void Panel::addApplets() {
                 }
             });
 
-            if (mPanelLayout == Horizontal) {
+            if (mPanelLayout == Horizontal && getConfigValue("winListShowTitles").toBool()) {
                 this->updateWinList();
             }
             else {
@@ -1135,7 +1169,8 @@ void Panel::addApplets() {
 
         else if (applet == "workspaces") {
             for (qint8 workspace = 0; workspace < mCountWorkspaces; ++workspace) {
-                this->connect(static_cast<QPushButton*>(mAppletWidgets["workspace" + QString::number(workspace+1)]),
+                QString buttonName = QString("workspace%1").arg(workspace+1);
+                this->connect(static_cast<QPushButton*>(mAppletWidgets[buttonName]),
                         &QPushButton::clicked, this, [workspace]() {
                     KWindowSystem::setCurrentDesktop(workspace+1);
                 });
@@ -1338,6 +1373,10 @@ void Panel::animation(AnimationType type) {
     }
 }
 
+void Panel::setOnCurrentDesktop() {
+    KWindowSystem::setOnDesktop(this->winId(), KWindowSystem::currentDesktop());
+}
+
 void Panel::testpoint(QObject* parent) {
     // parent is Initializer class instance
 
@@ -1359,12 +1398,13 @@ Panel::Panel(QObject* parent,
              int id,
              QApplication* app,
              QList<Panel*> prevPanels): QWidget(nullptr) {
+    qDebug() << id;
     mApplication = app;
     mConfig = config;
     mPanelWId = this->winId();
     KWindowInfo pIDInfo(mPanelWId, NET::WMPid);
     mPanelPID = pIDInfo.pid();
-    mPanelName = "panel" + QString::number(id);
+    mPanelName = QString("panel%1").arg(id);
     mExecHolder = parent;
     mIfname = getConfigValue("ipIfname").toString();
 
@@ -1402,8 +1442,11 @@ Panel::Panel(QObject* parent,
 Panel::~Panel() {
     // Stop all timers
     foreach (QTimer* currentTimer, mActiveTimers) {
-        currentTimer->stop();
-        delete currentTimer;
+        if (currentTimer != NULL) {
+            currentTimer->stop();
+            qDebug() << currentTimer->interval();
+            delete currentTimer;
+        }
     }
 
     // Delete App Menu
@@ -1454,6 +1497,11 @@ Panel::~Panel() {
         delete mWindowListLayout;
     }
 
+    foreach (CLIOutputApplet* applet, cliOutputAppletsList) {
+        delete applet;
+        applet = NULL;
+    }
+
     // Delete mSplitters
     foreach (QLabel* currentLabel, mSplitters) {
         delete currentLabel;
@@ -1478,6 +1526,7 @@ Panel::~Panel() {
     mWinIDs->clear();
     mWinWidgets.clear();
     mProcesses.clear();
+    cliOutputAppletsList.clear();
 
     this->hide();
 

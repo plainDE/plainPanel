@@ -14,7 +14,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-class CLIOutputApplet : public QObject {
+class CLIOutputApplet : public QPushButton {
     Q_OBJECT
 
 public:
@@ -22,14 +22,13 @@ public:
     void setData();
     void getData();
     void activate();
-    CLIOutputApplet(QWidget* parent,
+    CLIOutputApplet(QObject* parent,
                     QString appletName);
     ~CLIOutputApplet();
 
     QProcess* mProcess;
     QString mCommand;
     QString mAppletType;
-    QPushButton* mAppletButton;
     QTimer* mTimer;
     QStringList mWaitData;
 

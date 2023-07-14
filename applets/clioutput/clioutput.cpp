@@ -20,24 +20,44 @@ void CLIOutputApplet::setData() {
         QJsonObject conditions = mAppletConfig["conditions"].toObject();
         if (!condType.compare("stdout")) {
             QString stdoutData = mProcess->readAllStandardOutput();
-            result = conditions[stdoutData].toString().split(';');  // Icon + Text
+            if (conditions.contains(stdoutData)) {
+                result = conditions[stdoutData].toString().split(';');  // Icon + Text
+            }
+            else {
+                result = mAppletConfig["elseCondition"].toString().split(';');  // Icon + Text
+            }
         }
         else if (!condType.compare("exitcode")) {
             QString exitCode = QString::number(mProcess->exitCode());
-            result = conditions[exitCode].toString().split(';');  // Icon + Text
+            if (conditions.contains(exitCode)) {
+                result = conditions[exitCode].toString().split(';');  // Icon + Text
+            }
+            else {
+                result = mAppletConfig["elseCondition"].toString().split(';');  // Icon + Text
+            }
         }
 
         if (QIcon::hasThemeIcon(result[0])) {
-            mAppletButton->setIcon(QIcon::fromTheme(result[0]));
+            this->setIcon(QIcon::fromTheme(result[0]));
         }
         else {
-            mAppletButton->setIcon(QIcon(result[0]));
+            this->setIcon(QIcon(result[0]));
         }
-        mAppletButton->setText(result[1]);
+        this->setText(result[1]);
     }
     else if (!mAppletType.compare("stdout")) {
         QString stdoutData = mProcess->readAllStandardOutput();
-        mAppletButton->setText(stdoutData);
+        this->setText(stdoutData);
+    }
+    else if (!mAppletType.compare("data")) {
+        QStringList dataToShow = QString(mProcess->readAllStandardOutput()).split(';');
+        if (QIcon::hasThemeIcon(dataToShow[0])) {
+            this->setIcon(QIcon::fromTheme(dataToShow[0]));
+        }
+        else {
+            this->setIcon(QIcon(dataToShow[0]));
+        }
+        this->setText(dataToShow[1]);
     }
 }
 
@@ -46,12 +66,12 @@ void CLIOutputApplet::getData() {
 
     // Data that will be shown while command is running
     if (QIcon::hasThemeIcon(mWaitData[0])) {
-        mAppletButton->setIcon(QIcon::fromTheme(mWaitData[0]));
+        this->setIcon(QIcon::fromTheme(mWaitData[0]));
     }
     else {
-        mAppletButton->setIcon(QIcon(mWaitData[0]));
+        this->setIcon(QIcon(mWaitData[0]));
     }
-    mAppletButton->setText(mWaitData[1]);
+    this->setText(mWaitData[1]);
 }
 
 void CLIOutputApplet::activate() {
@@ -59,18 +79,17 @@ void CLIOutputApplet::activate() {
     mTimer->start();
 }
 
-CLIOutputApplet::CLIOutputApplet(QWidget* parent,
-                                 QString appletName) {
+CLIOutputApplet::CLIOutputApplet(QObject* parent,
+                                 QString appletName) : QPushButton(nullptr) {
     readConfig(appletName);
 
-    mAppletButton = new QPushButton();
-    mAppletButton->setFlat(true);
+    this->setFlat(true);
 
     mWaitData = mAppletConfig["waitData"].toString().split(';');  // Icon + Text
     mAppletType = mAppletConfig["type"].toString();
 
     mCommand = mAppletConfig["command"].toString();
-    mProcess = new QProcess(this);
+    mProcess = new QProcess(parent);
     this->connect(mProcess,
                   static_cast<void(QProcess::*)(int, QProcess::ExitStatus)>(&QProcess::finished),
                   this, [this] {
@@ -82,9 +101,13 @@ CLIOutputApplet::CLIOutputApplet(QWidget* parent,
     this->connect(mTimer, &QTimer::timeout, this, [this]() {
         getData();
     });
+
+    connect(this, &QPushButton::clicked, this, [this]() {
+        mTimer->stop();
+        this->activate();
+    });
 }
 
 CLIOutputApplet::~CLIOutputApplet() {
-    mTimer->stop();
-    delete mTimer;
+
 }
