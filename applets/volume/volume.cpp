@@ -11,7 +11,7 @@ void VolumeApplet::setVolume(int newVolume, VolumeAdjustMethod method) {
         exec = "amixer -q -D default sset Master " + QString::number(newVolume) + "%";
     }
     else if (method == PulseAudio) {
-        exec = "pactl set-sink-volume @DEFAULT_SINK@" + QString::number(newVolume) + "%";
+        exec = "pactl set-sink-volume @DEFAULT_SINK@ " + QString::number(newVolume) + "%";
     }
 
     QProcess* process = new QProcess;
