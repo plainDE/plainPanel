@@ -410,13 +410,7 @@ void Panel::updateWorkspaces() {
     visibleDesktop = KWindowSystem::currentDesktop();
     if (mPanelLayout == Horizontal) {
         for (qint8 workspace = 1; workspace <= mCountWorkspaces; ++workspace) {
-            QString buttonName;
-            if (!getConfigValue("showDesktopNames").toBool()) {
-                buttonName = QString("workspace%1").arg(workspace);
-            }
-            else {
-                buttonName = KWindowSystem::desktopName(workspace);
-            }
+            QString buttonName = QString("workspace%1").arg(workspace);
 
             if ((workspace) == visibleDesktop) {
                 QString buttonStyle = QString("background-color: %1; color: #ffffff;").arg(mAccentColor);
@@ -429,13 +423,13 @@ void Panel::updateWorkspaces() {
         }
     }
     else {
-	QString buttonText;
-	if (!getConfigValue("showDesktopNames").toBool()) {
-		buttonText = QString::number(visibleDesktop);
-	}
-	else {
-		buttonText = KWindowSystem::desktopName(visibleDesktop);
-	}
+        QString buttonText;
+        if (!getConfigValue("showDesktopNames").toBool()) {
+            buttonText = QString::number(visibleDesktop);
+        }
+        else {
+            buttonText = KWindowSystem::desktopName(visibleDesktop);
+        }
         static_cast<QPushButton*>(mAppletWidgets["workspace"])->setText(buttonText);
     }
 }
@@ -1200,13 +1194,7 @@ void Panel::addApplets() {
 
         else if (applet == "workspaces") {
             for (qint8 workspace = 1; workspace <= mCountWorkspaces; ++workspace) {
-                QString buttonName;
-                if (!getConfigValue("showDesktopNames").toBool()) {
-                    buttonName = QString("workspace%1").arg(workspace);
-                }
-                else {
-                    buttonName = KWindowSystem::desktopName(workspace);
-                }
+                QString buttonName = QString("workspace%1").arg(workspace);
 
                 this->connect(static_cast<QPushButton*>(mAppletWidgets[buttonName]),
                         &QPushButton::clicked, this, [workspace]() {
