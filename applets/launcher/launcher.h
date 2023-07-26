@@ -8,15 +8,17 @@
 #include <QSettings>
 #include <QProcess>
 #include <QIcon>
+#include <QPropertyAnimation>
 
 class Launcher : public QPushButton {
 public:
     Launcher(Panel* parentPanel,
              QString entry,
-             int iconSize,
+             int iconSz,
              QString iconTheme,
              QList<QProcess*>* processes,
-             QObject* execHolder);
+             QObject* execHolder,
+             bool animate);
     ~Launcher();
 };
 

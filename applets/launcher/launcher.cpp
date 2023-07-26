@@ -2,11 +2,14 @@
 
 Launcher::Launcher(Panel* parentPanel,
                    QString entry,
-                   int iconSize,
+                   int iconSz,
                    QString iconTheme,
                    QList<QProcess*>* processes,
-                   QObject* execHolder) {
+                   QObject* execHolder,
+                   bool animate) {
     QIcon::setThemeName(iconTheme);
+    this->setIconSize(QSize(iconSz, iconSz));
+    this->setFlat(true);
 
     QStringList launcherData = entry.split(':');
     if (entry.endsWith(".desktop")) {
@@ -53,10 +56,25 @@ Launcher::Launcher(Panel* parentPanel,
         this->setToolTip(tooltipLabel);
 
         parentPanel->connect(this, &QPushButton::clicked, parentPanel,
-                      [exec, execHolder, processes]() {
+                      [this, exec, execHolder, processes, animate, iconSz]() {
             QProcess* process = new QProcess(execHolder);
             processes->append(process);
             process->start(exec);
+
+            if (animate) {
+                QPropertyAnimation* animation = new QPropertyAnimation(this, "iconSize");
+                animation->setDuration(200);
+                animation->setStartValue(this->iconSize());
+                animation->setEndValue(QSize(64, 64));
+                animation->start();
+                this->connect(animation, &QPropertyAnimation::finished, this, [this, iconSz, animation]() {
+                    //this->setIconSize(QSize(iconSz, iconSz));
+                    animation->setDuration(50);
+                    animation->setStartValue(this->iconSize());
+                    animation->setEndValue(QSize(iconSz, iconSz));
+                    animation->start();
+                });
+            }
         });
     }
     else {
@@ -70,16 +88,27 @@ Launcher::Launcher(Panel* parentPanel,
         }
 
         parentPanel->connect(this, &QPushButton::clicked, parentPanel,
-                             [launcherData, execHolder, processes]() {
+                             [this, launcherData, execHolder, processes, animate, iconSz]() {
             QProcess* process = new QProcess(execHolder);
             processes->append(process);
             process->start(launcherData[1]);
+
+            if (animate) {
+                QPropertyAnimation* animation = new QPropertyAnimation(this, "iconSize");
+                animation->setDuration(200);
+                animation->setStartValue(this->iconSize());
+                animation->setEndValue(QSize(64, 64));
+                animation->start();
+                this->connect(animation, &QPropertyAnimation::finished, this, [this, iconSz, animation]() {
+                    //this->setIconSize(QSize(iconSz, iconSz));
+                    animation->setDuration(50);
+                    animation->setStartValue(this->iconSize());
+                    animation->setEndValue(QSize(iconSz, iconSz));
+                    animation->start();
+                });
+            }
         });
     }
-
-
-    this->setIconSize(QSize(iconSize, iconSize));
-    this->setFlat(true);
 }
 
 Launcher::~Launcher() {
