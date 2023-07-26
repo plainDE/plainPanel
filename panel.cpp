@@ -429,7 +429,14 @@ void Panel::updateWorkspaces() {
         }
     }
     else {
-        static_cast<QPushButton*>(mAppletWidgets["workspace"])->setText(QString::number(visibleDesktop));
+	QString buttonText;
+	if (!getConfigValue("showDesktopNames").toBool()) {
+		buttonText = QString::number(visibleDesktop);
+	}
+	else {
+		buttonText = KWindowSystem::desktopName(visibleDesktop);
+	}
+        static_cast<QPushButton*>(mAppletWidgets["workspace"])->setText(buttonText);
     }
 }
 
