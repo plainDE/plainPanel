@@ -410,21 +410,21 @@ void Panel::updateWorkspaces() {
     visibleDesktop = KWindowSystem::currentDesktop();
     if (mPanelLayout == Horizontal) {
         for (qint8 workspace = 1; workspace <= mCountWorkspaces; ++workspace) {
-            QString buttonText;
+            QString buttonName;
             if (!getConfigValue("showDesktopNames").toBool()) {
-                buttonText = QString("workspace%1").arg(workspace);
+                buttonName = QString("workspace%1").arg(workspace);
             }
             else {
-                buttonText = KWindowSystem::desktopName(workspace);
+                buttonName = KWindowSystem::desktopName(workspace);
             }
 
             if ((workspace) == visibleDesktop) {
                 QString buttonStyle = QString("background-color: %1; color: #ffffff;").arg(mAccentColor);
-                mAppletWidgets[buttonText]->setStyleSheet(buttonStyle);
+                mAppletWidgets[buttonName]->setStyleSheet(buttonStyle);
                 qDebug() << visibleDesktop << "is visible.";
             }
             else {
-                mAppletWidgets[buttonText]->setStyleSheet("background-color: #9a9996; color: #000000;");
+                mAppletWidgets[buttonName]->setStyleSheet("background-color: #9a9996; color: #000000;");
             }
         }
     }
@@ -917,7 +917,7 @@ void Panel::addApplets() {
                 for (qint8 workspace = 1; workspace <= countWorkspaces; ++workspace) {
                     QString buttonText;
                     if (!getConfigValue("showDesktopNames").toBool()) {
-                        buttonText = QString("workspace%1").arg(workspace);
+                        buttonText = QString::number(workspace);
                     }
                     else {
                         buttonText = KWindowSystem::desktopName(workspace);
@@ -926,7 +926,7 @@ void Panel::addApplets() {
                     QPushButton* currentWorkspace = new QPushButton(buttonText);
                     currentWorkspace->setMaximumWidth(mFontMetrics->horizontalAdvance("100"));
                     currentWorkspace->setStyleSheet("background-color: #9a9996; color: #000000;");
-                    mAppletWidgets[buttonText] = currentWorkspace;
+                    mAppletWidgets[QString("workspace%1").arg(workspace)] = currentWorkspace;
 
                     if (KWindowSystem::currentDesktop() == workspace) {
                         QString buttonStyle = QString("background-color: %1; color: #ffffff;").arg(mAccentColor);
@@ -1200,15 +1200,15 @@ void Panel::addApplets() {
 
         else if (applet == "workspaces") {
             for (qint8 workspace = 1; workspace <= mCountWorkspaces; ++workspace) {
-                QString buttonText;
+                QString buttonName;
                 if (!getConfigValue("showDesktopNames").toBool()) {
-                    buttonText = QString("workspace%1").arg(workspace);
+                    buttonName = QString("workspace%1").arg(workspace);
                 }
                 else {
-                    buttonText = KWindowSystem::desktopName(workspace);
+                    buttonName = KWindowSystem::desktopName(workspace);
                 }
 
-                this->connect(static_cast<QPushButton*>(mAppletWidgets[buttonText]),
+                this->connect(static_cast<QPushButton*>(mAppletWidgets[buttonName]),
                         &QPushButton::clicked, this, [workspace]() {
                     KWindowSystem::setCurrentDesktop(workspace);
                 });
