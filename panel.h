@@ -13,7 +13,6 @@
 #include <QJsonValue>
 #include <QJsonArray>
 #include <QFile>
-#include <QJsonObject>
 #include <QJsonDocument>
 #include <QTimer>
 #include <QPropertyAnimation>
@@ -88,11 +87,12 @@ private:
     void setPanelFlags();
     PanelInterference checkPanelsInterference(PanelLocation loc1, PanelLocation loc2);
     void setPanelGeometry();
-    void shortenTitle(QString* src, QPushButton* button);
     void setPanelUI();
     void addApplets();
     void testpoint(QObject* parent);
     void freeUnusedMemory(bool quit);
+    int getWindowDataSize(QString title);
+    QString shortenWindowData(QPushButton* button, QString title);
 
     QApplication *mApplication;
     QJsonObject* mConfig;
@@ -101,7 +101,8 @@ private:
     QString mPanelName;
     QObject* mExecHolder;
 
-    QScreen* mPrimaryScreen;
+    QScreen* mPanelScreen = nullptr;
+    QRect mScreenGeometry;
     int mScreenWidth, mScreenHeight;
     QList<Panel*> mPrevPanels;
 
@@ -127,7 +128,9 @@ private:
     QString mTimeFormat, mDateFormat;
 
     QBoxLayout* mWindowListLayout;
-    QHash<WId,QString> titleByWId;
+    QHash<WId,QString> mFullTitleByWId;
+    QHash<WId,QString> mCurrentTitleByWId;
+    QHash<WId,int> mButtonSizeByWId;
     int mWindowListIconSize;
 
     QList<QWidget*>* mMprisCards;
@@ -170,6 +173,7 @@ private slots:
     void updateDateTime();          // Date & Time applet (Time only)
     void updateKbLayout();          // Keyboard layout applet (ISO code)
     void updateKbLayout(bool);      // Keyboard layout applet (flag)
+    void updateWinTitlesLength();   // Window List applet
     void updateWinTitles();         // Window List applet
     void updateWorkspaces();        // Workspaces applet
     void updateLocalIPv4();         // Local IP applet

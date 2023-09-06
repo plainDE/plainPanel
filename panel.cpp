@@ -58,7 +58,8 @@ void Panel::setPanelFlags() {
     this->setAttribute(Qt::WA_AlwaysShowToolTips);
 }
 
-PanelInterference Panel::checkPanelsInterference(PanelLocation loc1, PanelLocation loc2) {
+PanelInterference Panel::checkPanelsInterference(PanelLocation loc1,
+                                                 PanelLocation loc2) {
     if (loc1 != loc2) {
         if (loc1 == Top) {
             if (loc2 == Left)
@@ -102,18 +103,28 @@ PanelInterference Panel::checkPanelsInterference(PanelLocation loc1, PanelLocati
 }
 
 void Panel::setPanelGeometry() {
-    // Get primary screen dimensions
-    mPrimaryScreen = QGuiApplication::primaryScreen();
-    mScreenWidth = mPrimaryScreen->size().width();
-    mScreenHeight = mPrimaryScreen->size().height();
+    QString screenName = getConfigValue(mPanelName, "screen").toString();
+    QList<QScreen*> screens = QGuiApplication::screens();
+    foreach (QScreen* screen, screens) {
+        if (screen->name() == screenName) {
+            mPanelScreen = screen;
+        }
+    }
+    if (!mPanelScreen) {
+        mPanelScreen = QGuiApplication::primaryScreen();
+    }
+    mScreenGeometry = mPanelScreen->geometry();
+
+    mScreenWidth = mPanelScreen->size().width();
+    mScreenHeight = mPanelScreen->size().height();
 
     // Panel should update geometry when primary screen resolution is changed
-    this->connect(mPrimaryScreen, &QScreen::orientationChanged, this, [this]() {
+    this->connect(mPanelScreen, &QScreen::orientationChanged, this, [this]() {
         qDebug() << "Screen resolution changed.";
         setPanelGeometry();
     });
 
-    this->connect(mPrimaryScreen, &QScreen::geometryChanged, this, [this]() {
+    this->connect(mPanelScreen, &QScreen::geometryChanged, this, [this]() {
         qDebug() << "Screen resolution changed.";
         setPanelGeometry();
     });
@@ -124,7 +135,7 @@ void Panel::setPanelGeometry() {
     mPanelThickness = getConfigValue(mPanelName, "thickness").toInt();
 
     // Location, Layout & Strut
-    int ax = 0, ay = 0;
+    int ax = mScreenGeometry.x(), ay = mScreenGeometry.y();
     QString loc = getConfigValue(mPanelName, "location").toString();
     mAxisShift = getConfigValue(mPanelName, "shift").toInt();
     int topStrut = 0, bottomStrut = 0, leftStrut = 0, rightStrut = 0;
@@ -133,7 +144,7 @@ void Panel::setPanelGeometry() {
         mPanelLocation = Top;
         mPanelLayout = Horizontal;
         if (mAxisShift != 0) {
-            ax = mAxisShift;
+            ax += mAxisShift;
         }
 
         // This will not work if we have other screen on top of primary screen
@@ -142,9 +153,9 @@ void Panel::setPanelGeometry() {
     else if (loc == "bottom") {
         mPanelLocation = Bottom;
         mPanelLayout = Horizontal;
-        ay = mScreenHeight - mPanelThickness;
+        ay = mScreenGeometry.y() + mScreenHeight - mPanelThickness;
         if (mAxisShift != 0) {
-            ax = mAxisShift;
+            ax += mAxisShift;
         }
 
         // This will not work if we have other screen on bottom of primary screen
@@ -154,18 +165,18 @@ void Panel::setPanelGeometry() {
         mPanelLocation = Left;
         mPanelLayout = Vertical;
         if (mAxisShift != 0) {
-            ay = mAxisShift;
+            ay += mAxisShift;
         }
 
         // This will not work if we have other screen on left of primary screen
         leftStrut = mPanelThickness;
     }
-    else {
+    else {  // loc = right
         mPanelLocation = Right;
         mPanelLayout = Vertical;
-        ax = mScreenWidth - mPanelThickness;
+        ax = mScreenGeometry.x() + mScreenWidth - mPanelThickness;
         if (mAxisShift != 0) {
-            ay = mAxisShift;
+            ay += mAxisShift;
         }
 
         // This will not work if we have other screen on right of primary screen
@@ -230,11 +241,31 @@ void Panel::setPanelGeometry() {
     this->move(ax, ay);
     this->setFixedSize(mPanelWidth, mPanelHeight);
 
-    KWindowSystem::setStrut(mPanelWId,
+    /*KWindowSystem::setStrut(mPanelWId,
                             leftStrut,
                             rightStrut,
                             topStrut,
-                            bottomStrut);
+                            bottomStrut);*/
+
+    KWindowSystem::setExtendedStrut(mPanelWId,
+                                    leftStrut,
+                                    mScreenGeometry.y(),
+                                    mScreenGeometry.y() + mScreenGeometry.height(),
+                                    rightStrut,
+                                    mScreenGeometry.y(),
+                                    mScreenGeometry.y() + mScreenGeometry.height(),
+                                    topStrut,
+                                    mScreenGeometry.x(),
+                                    mScreenGeometry.x() + mScreenGeometry.width(),
+                                    bottomStrut,
+                                    mScreenGeometry.x(),
+                                    mScreenGeometry.x() + mScreenGeometry.width());
+
+    qDebug() << "Strut:" << leftStrut << rightStrut << topStrut << bottomStrut;
+    qDebug() << "left strut restrictions:" << mScreenGeometry.y() << '-' << mScreenGeometry.y() + mScreenGeometry.height();
+    qDebug() << "right strut restrictions:" << mScreenGeometry.y() << '-' << mScreenGeometry.y() + mScreenGeometry.height();
+    qDebug() << "top strut restrictions:" << mScreenGeometry.x() << '-' << mScreenGeometry.x() + mScreenGeometry.width();
+    qDebug() << "bottom strut restrictions:" << mScreenGeometry.x() << '-' << mScreenGeometry.x() + mScreenGeometry.width();
 
     qDebug() << this->geometry().x() << this->geometry().y();
     qDebug() << ax << ay;
@@ -271,17 +302,6 @@ void Panel::updateKbLayout(bool) {
     mAppletWidgets["layoutIndicator"]->setToolTip(mKbLayout.getCurrentKbLayout());
 }
 
-void Panel::shortenTitle(QString* src, QPushButton* button) {
-    int availableWidth = button->geometry().width() - mPanelThickness - 3;
-    bool cut = false;
-    while (mFontMetrics->horizontalAdvance(*src) > availableWidth) {
-        src->chop(1);
-        cut = true;
-    }
-    if (cut)
-        src->append("...");
-}
-
 void Panel::updateWinList() {
     WindowList::getWinList(mWinIDs);
     for (auto it = mWinIDs->cbegin(), end = mWinIDs->cend(); it != end; ++it) {
@@ -292,18 +312,19 @@ void Panel::updateWinList() {
                 KWindowInfo nameInfo(*it, NET::WMName);
                 QPixmap icon = KWindowSystem::icon(*it, -1, mPanelThickness, true);
                 QString winName = nameInfo.name();
-                unsigned short sz = winName.length();
-                winName.truncate(12);
-                if (winName.length() < sz) {
-                    winName += "...";
-                }
-                QPushButton* windowButton = new QPushButton(winName, this);
+                QPushButton* windowButton = new QPushButton(this);
+                windowButton->setText(winName);
+                windowButton->setToolTip(winName);
                 windowButton->setIcon(icon);
                 windowButton->setIconSize(QSize(mWindowListIconSize,
                                                 mWindowListIconSize));
                 windowButton->setFont(mPanelFont);
+
                 mWinWidgets[*it] = windowButton;
                 mWindowListLayout->addWidget(windowButton);
+
+                mFullTitleByWId[*it] = winName;
+                windowButton->setText(shortenWindowData(windowButton, winName));
 
                 this->connect(windowButton, &QPushButton::clicked, this, [windowButton]() {
                     KWindowInfo windowInfo(mWinWidgets.key(windowButton), NET::WMState | NET::XAWMState);
@@ -314,24 +335,24 @@ void Panel::updateWinList() {
                         KWindowSystem::minimizeWindow(mWinWidgets.key(windowButton));
                     }
                 });
+
+                updateWinTitlesLength();
             }
             else {
                 if (desktopInfo.isOnCurrentDesktop()) {
                     KWindowInfo nameInfo(*it, NET::WMName);
                     QString newName = nameInfo.name();
-                    mWinWidgets[*it]->setToolTip(newName);
-                    unsigned short sz = newName.length();
-                    newName.truncate(12);
-                    if (newName.length() < sz) {
-                        newName += "...";
-                    }
-                    if (mWinWidgets[*it]->text() != newName) {
-                        mWinWidgets[*it]->setText(newName);
+                    if (mFullTitleByWId[*it] != newName) {
+                        updateWinTitlesLength();
+                        mFullTitleByWId[*it] = newName;
+                        mWinWidgets[*it]->setToolTip(newName);
+                        mWinWidgets[*it]->setText(shortenWindowData(mWinWidgets[*it], newName));
                     }
                 }
                 else {
                     delete mWinWidgets[*it];
                     mWinWidgets.remove(*it);
+                    updateWinTitlesLength();
                 }
             }
         }
@@ -360,6 +381,9 @@ void Panel::updateWinList(bool) {
                     KWindowInfo windowInfo(mWinWidgets.key(windowButton), NET::WMState | NET::XAWMState);
                     if (windowInfo.mappingState() != NET::Visible || windowInfo.isMinimized()) {
                         KWindowSystem::unminimizeWindow(mWinWidgets.key(windowButton));
+                        if (windowInfo.isMinimized()) {
+                            KWindowSystem::unminimizeWindow(mWinWidgets.key(windowButton));
+                        }
                     }
                     else {
                         KWindowSystem::minimizeWindow(mWinWidgets.key(windowButton));
@@ -376,19 +400,52 @@ void Panel::updateWinList(bool) {
     }
 }
 
+int Panel::getWindowDataSize(QString title) {
+    int iconSize = mWindowListIconSize;
+    int dataSize = iconSize + 3 + mFontMetrics->horizontalAdvance(title);
+    return dataSize;
+}
+
+QString Panel::shortenWindowData(QPushButton* button, QString title) {
+    int buttonSize = button->geometry().width() - 6;
+    int dataSize = getWindowDataSize(title);
+    bool edited = false;
+    while (dataSize > buttonSize && title.length() > 0) {
+        edited = true;
+        title.chop(1);
+        dataSize = getWindowDataSize(title) + mFontMetrics->horizontalAdvance("...");
+    }
+    if (edited) {
+        title.append("...");
+    }
+    return title;
+}
+
+void Panel::updateWinTitlesLength() {
+    for (auto it = mWinIDs->cbegin(), end = mWinIDs->cend(); it != end; ++it) {
+        KWindowInfo pIDInfo(*it, NET::WMPid);
+        if (pIDInfo.pid() != mPanelPID) {
+           if (mWinWidgets.contains(*it)) {
+                QString title = KWindowSystem::readNameProperty(*it, 39);
+                if (getWindowDataSize(title) > mButtonSizeByWId[*it]) {
+                    mWinWidgets[*it]->setText(shortenWindowData(mWinWidgets[*it], title));
+                }
+            }
+        }
+    }
+}
+
 void Panel::updateWinTitles() {
     for (auto it = mWinIDs->cbegin(), end = mWinIDs->cend(); it != end; ++it) {
         KWindowInfo pIDInfo(*it, NET::WMPid);
         if (pIDInfo.pid() != mPanelPID) {
             if (mWinWidgets.contains(*it)) {
                 QString title = KWindowSystem::readNameProperty(*it, 39);
-                unsigned short sz = title.length();
-                title.truncate(12);
-                if (title.length() < sz) {
-                    title += "...";
-                }
-                if (mWinWidgets[*it]->text() != title) {
-                    mWinWidgets[*it]->setText(title);
+                if (mFullTitleByWId[*it] != title) {
+                    mFullTitleByWId[*it] = title;
+                    mWinWidgets[*it]->setToolTip(title);
+                    mWinWidgets[*it]->setText(shortenWindowData(mWinWidgets[*it], title));
+                    updateWinTitlesLength();
                 }
             }
         }
@@ -582,6 +639,7 @@ void Panel::setRepeatingActions() {
                     updateWinList(false);
                 });
             }
+
             this->connect(KWindowSystem::self(), &KWindowSystem::activeWindowChanged, this, &Panel::accentActiveWindow);
 
             if (mPanelLayout == Horizontal && getConfigValue("winListShowTitles").toBool()) {
@@ -701,13 +759,16 @@ void Panel::setPanelUI() {
 #endif
 
     // Create layout
+    int margin = getConfigValue(mPanelName, "margin").toInt();
     if (mPanelLayout == Horizontal) {
         mBoxLayout = new QHBoxLayout(this);
+        mBoxLayout->setContentsMargins(margin, 1, margin, 1);
     }
     else {
         mBoxLayout = new QVBoxLayout(this);
+        mBoxLayout->setContentsMargins(1, margin, 1, margin);
     }
-    mBoxLayout->setContentsMargins(1, 1, 1, 1);
+
     mBoxLayout->setSpacing(getConfigValue(mPanelName, "spacing").toInt());
 
     // Set font
@@ -1172,16 +1233,31 @@ void Panel::addApplets() {
         }
 
         else if (applet == "windowlist") {
-            this->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, []() {
-                WindowList::getWinList(mWinIDs);
-                QList<WId> keys = mWinWidgets.keys();
-                foreach (WId id, keys) {
-                    if (!mWinIDs->contains(id)) {
-                        delete mWinWidgets[id];
-                        mWinWidgets.remove(id);
+            if (mPanelLayout == Horizontal && getConfigValue("winListShowTitles").toBool()) {
+                this->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, [this]() {
+                    WindowList::getWinList(mWinIDs);
+                    QList<WId> keys = mWinWidgets.keys();
+                    foreach (WId id, keys) {
+                        if (!mWinIDs->contains(id)) {
+                            delete mWinWidgets[id];
+                            mWinWidgets.remove(id);
+                            updateWinTitlesLength();
+                        }
                     }
-                }
-            });
+                });
+            }
+            else {
+                this->connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, [this]() {
+                    WindowList::getWinList(mWinIDs);
+                    QList<WId> keys = mWinWidgets.keys();
+                    foreach (WId id, keys) {
+                        if (!mWinIDs->contains(id)) {
+                            delete mWinWidgets[id];
+                            mWinWidgets.remove(id);
+                        }
+                    }
+                });
+            }
 
             if (mPanelLayout == Horizontal && getConfigValue("winListShowTitles").toBool()) {
                 this->updateWinList();
@@ -1463,6 +1539,7 @@ Panel::Panel(QObject* parent,
 
     testpoint(mExecHolder);
 }
+
 
 Panel::~Panel() {
     // Stop all timers
