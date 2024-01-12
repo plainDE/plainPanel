@@ -23,7 +23,7 @@ enum PanelLocation {
 };
 
 struct PanelCfg {
-    bool isNull;
+    bool isNull = false;
     QJsonArray applets;
     QString screen;
     QString backgroundImagePath;
