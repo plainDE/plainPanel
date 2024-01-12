@@ -1,5 +1,6 @@
+#include "../../applet.h"
+
 #include <QIcon>
-#include "../../panel.h"
 
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-x11.h>
@@ -23,11 +24,39 @@
 #define KBLAYOUT_H
 
 
-class KbLayoutApplet {
+class KbLayoutApplet : public Applet {
 public:
-    void __init__(QStringList activeLayouts);
-    QString getCurrentKbLayout();
-    QIcon getCurrentFlag();
+    KbLayoutApplet(ConfigManager* cfgMan,
+                   Panel* parentPanel,
+                   QString additionalInfo);
+    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    void repeatingAction(ConfigManager* cfgMan,
+                         Panel* parentPanel,
+                         bool useFlag);
+    void repeatingAction(ConfigManager* cfgMan,
+                         Panel* parentPanel);
+    void activate(ConfigManager* cfgMan, Panel* parentPanel);
+    ~KbLayoutApplet();
+
+    QPushButton* mExternalWidget;
+
+private:
+    void connectToXServer();
+    void cacheFlagIcons(ConfigManager* cfgMan);
+    void setISOCodes();
+    QString getCurrentLayoutISOCode();
+    void setLayouts(ConfigManager* cfgMan, Panel* parentPanel);
+
+    Display* mKbDisplay;
+    XkbDescPtr mKeyboard;
+    XkbStateRec mState;
+    int mDisplayResult;
+    QString mLayout;
+    QJsonObject mLayoutCodes;
+    QHash<QString,QIcon> mFlagByCode;
+
+    int mInterval;
+    QTimer* mTimer;
 };
 
 #endif // KBLAYOUT_H

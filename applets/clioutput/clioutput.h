@@ -1,6 +1,8 @@
 #ifndef CLIOUTPUTAPPLET_H
 #define CLIOUTPUTAPPLET_H
 
+#include "../../applet.h"
+
 #include <QObject>
 #include <QPushButton>
 #include <QString>
@@ -14,26 +16,32 @@
 #include <QJsonObject>
 #include <QJsonArray>
 
-class CLIOutputApplet : public QPushButton {
-    Q_OBJECT
 
+class CLIOutputApplet : public Applet {
 public:
-    void readConfig(QString appletName);
-    void setData();
-    void getData();
-    void activate();
-    CLIOutputApplet(QObject* parent,
-                    QString appletName);
+    CLIOutputApplet(ConfigManager* cfgMan,
+                    Panel* parentPanel,
+                    QString additionalInfo);
+    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    void repeatingAction(ConfigManager* cfgMan, Panel* parentPanel);
+    void activate(ConfigManager* cfgMan, Panel* parentPanel);
     ~CLIOutputApplet();
 
-    QProcess* mProcess;
-    QString mCommand;
-    QString mAppletType;
-    QTimer* mTimer;
-    QStringList mWaitData;
+    QPushButton* mExternalWidget;
 
 private:
+    void readConfig();
+    void setData();
+
+    QString mAppletName;
     QJsonObject mAppletConfig;
+    QProcess* mProcess;
+    QString mCommand;
+    QStringList mWaitData;
+    QString mAppletType;
+
+    int mInterval;
+    QTimer* mTimer;
 };
 
 #endif // CLIOUTPUTAPPLET_H

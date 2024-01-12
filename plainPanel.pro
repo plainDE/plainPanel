@@ -15,6 +15,7 @@ INCLUDEPATH += /usr/include/KF5/KWindowSystem
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    applet.cpp \
     applets/appmenu/appmenu.cpp \
     applets/battery/battery.cpp \
     applets/clioutput/clioutput.cpp \
@@ -25,16 +26,19 @@ SOURCES += \
     applets/mpris/mpris.cpp \
     applets/snitray/snitray.cpp \
     applets/snitray/statusnotifierwatcher.cpp \
+    applets/usermenu/powerdialog.cpp \
     applets/usermenu/usermenu.cpp \
     applets/volume/volume.cpp \
     applets/windowlist/windowlist.cpp \
     applets/workspaces/workspaces.cpp \
+    configman.cpp \
     dbusintegration.cpp \
     initializer.cpp \
     main.cpp \
     panel.cpp
 
 HEADERS += \
+    applet.h \
     applets/appmenu/appmenu.h \
     applets/battery/battery.h \
     applets/clioutput/clioutput.h \
@@ -45,21 +49,20 @@ HEADERS += \
     applets/mpris/mpris.h \
     applets/snitray/snitray.h \
     applets/snitray/statusnotifierwatcher.h \
+    applets/usermenu/powerdialog.h \
     applets/usermenu/usermenu.h \
     applets/volume/volume.h \
     applets/windowlist/windowlist.h \
     applets/workspaces/workspaces.h \
+    configman.h \
     dbusintegration.h \
     initializer.h \
     panel.h
 
-CONFIG += lrelease
+#CONFIG += lrelease
 CONFIG += embed_translations
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
-
-DISTFILES += \
-    devnotes.txt

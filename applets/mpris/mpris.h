@@ -1,7 +1,7 @@
 #ifndef MPRISAPPLET_H
 #define MPRISAPPLET_H
 
-#include "../../panel.h"
+#include "../../applet.h"
 
 #include <QWidget>
 #include <QDBusConnection>
@@ -11,29 +11,34 @@
 #include <QVariantMap>
 #include <QtConcurrent>
 
-class MPRISApplet : public QWidget {
+class MPRISApplet : public Applet {
+    Q_OBJECT
 public:
-    MPRISApplet(PanelLocation panelLocation,
-                int panelThickness,
-                int screenWidth,
-                int screenHeight,
-                int buttonCoord1,
-                int buttonCoord2,
-                QString theme,
-                double opacity);
+    MPRISApplet(ConfigManager* cfgMan,
+                Panel* parentPanel,
+                QString additionalInfo);
+    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    void internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    ~MPRISApplet();
+
+    QPushButton* mExternalWidget;
+    QWidget* mInternalWidget;
+
+private:
+    QWidget* createPlayerCard(ConfigManager* cfgMan, QString serviceName);
+    void addCards(ConfigManager* cfgMan);
+    void setSize(ConfigManager* cfgMan, Panel* parentPanel);
+    void updateIdentity(QString serviceName,
+                        QLabel* iconLabel,
+                        QLabel* titleLabel);
     QVariantMap getMetadata(QString playerService);
     QString getProperty(QString playerService,
                         QString playerPath,
                         QString propertyInterface,
                         QString propertyName);
-
-    void updateIdentity(QString serviceName,
-                        QLabel* iconLabel,
-                        QLabel* titleLabel);
-
-    void playPauseMedia(QString serviceName,
-                        QLabel* iconLabel,
-                        QLabel* titleLabel);
+    void playPause(QString serviceName,
+                   QLabel* iconLabel,
+                   QLabel* titleLabel);
     void previous(QString serviceName,
                   QLabel* iconLabel,
                   QLabel* titleLabel);
@@ -41,27 +46,16 @@ public:
               QLabel* iconLabel,
               QLabel* titleLabel);
 
-    QWidget* createPlayerCard(QString serviceName,
-                              QFont font,
-                              QString theme,
-                              QString accent);
-    void setPlayerCards(QList<QWidget*>* mprisCards,
-                        QFont font,
-                        QString stylesheet,
-                        QString accent);
-    void createUI(PanelLocation panelLocation,
-                  int panelThickness,
-                  int screenWidth,
-                  int screenHeight,
-                  int buttonCoord1,
-                  int buttonCoord2,
-                  QString theme,
-                  double opacity);
-
+    QDBusMessage mRequest, mResponse;
     QList<QWidget*> mCards;
+    bool mHasCards;
+    bool mDestructed;
 
-public slots:
-    void downloadFinished(QNetworkReply* reply);
+signals:
+    void readyToDestroy();
+
+private slots:
+    void destructCards();
 };
 
 #endif // MPRISAPPLET_H

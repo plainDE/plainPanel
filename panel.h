@@ -1,7 +1,8 @@
 #ifndef PANEL_H
 #define PANEL_H
 
-#include "initializer.h"
+
+#include "configman.h"
 
 #include <QWidget>
 #include <QBoxLayout>
@@ -16,6 +17,7 @@
 #include <QJsonDocument>
 #include <QTimer>
 #include <QPropertyAnimation>
+#include <QGraphicsDropShadowEffect>
 #include <QFont>
 #include <QPushButton>
 #include <QLabel>
@@ -26,18 +28,12 @@
 #include <QGraphicsView>
 #include <QtConcurrent>
 #include <KWindowSystem>
+#include <QBitmap>
 
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class panel; }
 QT_END_NAMESPACE
-
-enum PanelLocation {
-    Top = 1,
-    Bottom = 2,
-    Left = 3,
-    Right = 4
-};
 
 enum PanelInterference {
     None = 0,
@@ -53,8 +49,8 @@ enum PanelInterference {
 };
 
 enum PanelLayout {
-    Horizontal = 1,
-    Vertical = 2
+    Horizontal = 0,
+    Vertical = 1
 };
 
 enum AnimationType {
@@ -67,7 +63,7 @@ class Panel : public QWidget {
 
 public:
     Panel(QObject *parent = nullptr,
-          QJsonObject* config = nullptr,
+          ConfigManager* cfgMan = nullptr,
           int id = 0,
           QApplication* app = nullptr,
           QList<Panel*> prevPanels = {});
@@ -76,29 +72,25 @@ public:
     void updateWinList(bool);       // Window List applet (without titles, for vertical panel)
     ~Panel();
 
-
-
-private:
-    QJsonValue getConfigValue(QString key);
-    QJsonValue getConfigValue(QString section, QString key);
-    void basicInit(QJsonObject* config, qint8 number);
     void setRepeatingActions();
-    void readConfig();
     void setPanelFlags();
-    PanelInterference checkPanelsInterference(PanelLocation loc1, PanelLocation loc2);
     void setPanelGeometry();
     void setPanelUI();
     void addApplets();
+    void setTransparency();
+    void setAppletsActions();
     void testpoint(QObject* parent);
-    void freeUnusedMemory(bool quit);
+
+    void highlight();
+
     int getWindowDataSize(QString title);
     QString shortenWindowData(QPushButton* button, QString title);
 
     QApplication *mApplication;
-    QJsonObject* mConfig;
+    ConfigManager* mCfgMan;
     WId mPanelWId;
     pid_t mPanelPID;
-    QString mPanelName;
+    int mPanelID;
     QObject* mExecHolder;
 
     QScreen* mPanelScreen = nullptr;
@@ -107,10 +99,12 @@ private:
     QList<Panel*> mPrevPanels;
 
     int mPanelThickness;
+    int mSpacing;
     PanelLayout mPanelLayout;
     int mPanelWidth, mPanelHeight;
     PanelLocation mPanelLocation;
     int mAxisShift;
+    QRect mTargetGeometry;
 
     QBoxLayout* mBoxLayout;
     QVariantList mActiveAppletsList;
@@ -121,6 +115,7 @@ private:
     QFont mPanelFont;
     QFontMetrics* mFontMetrics;
     QString mStylesheet;
+    bool mPanelTransparent = false;
     QString mAccentColor;
     double mOpacity;
 
@@ -128,10 +123,8 @@ private:
     QString mTimeFormat, mDateFormat;
 
     QBoxLayout* mWindowListLayout;
-    QHash<WId,QString> mFullTitleByWId;
-    QHash<WId,QString> mCurrentTitleByWId;
-    QHash<WId,int> mButtonSizeByWId;
-    int mWindowListIconSize;
+
+    int mLauncherIconSize;
 
     QList<QWidget*>* mMprisCards;
 
@@ -141,43 +134,16 @@ private:
 
     qint8 mCountWorkspaces;
 
-    QString mIfname;
-    QString mLastIP;
-
-    QString mBatteryName;
-    qint8 mBatteryIconSize;
-
     QList<QProcess*> mProcesses;
 
     QBoxLayout* mSNILayout;
-    QHash<QString,QPushButton*> mSniWidgets;
 
     bool mHasCLIOutputApplet = false;
 
+private:
+    QFrame* mPanelFrame;
+
 signals:
     void animationFinished();
-    void winListUpdateRequired();
-
-public slots:
-    void toggleAppMenu();
-    void toggleCalendar();
-    void toggleUserMenu();
-    void toggleMPRIS();
-    void setOnCurrentDesktop();
-
-private slots:
-    // updating applets data
-    void setVolume();               // Volume applet
-    void accentActiveWindow();      // Window List applet
-    void updateDateTime(bool);      // Date & Time applet (Time + Date)
-    void updateDateTime();          // Date & Time applet (Time only)
-    void updateKbLayout();          // Keyboard layout applet (ISO code)
-    void updateKbLayout(bool);      // Keyboard layout applet (flag)
-    void updateWinTitlesLength();   // Window List applet
-    void updateWinTitles();         // Window List applet
-    void updateWorkspaces();        // Workspaces applet
-    void updateLocalIPv4();         // Local IP applet
-    void updateBatteryState();      // Battery applet
-    void updateBatteryStateDark();  // Battery applet (on dark theme)
 };
 #endif // PANEL_H

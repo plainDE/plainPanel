@@ -1,7 +1,8 @@
 #ifndef LAUNCHER_H
 #define LAUNCHER_H
 
-#include "panel.h"
+#include "../../applet.h"
+
 #include <QPushButton>
 #include <QString>
 #include <QFile>
@@ -10,16 +11,24 @@
 #include <QIcon>
 #include <QPropertyAnimation>
 
-class Launcher : public QPushButton {
+class LauncherApplet : public Applet {
+    Q_OBJECT
 public:
-    Launcher(Panel* parentPanel,
-             QString entry,
-             int iconSz,
-             QString iconTheme,
-             QList<QProcess*>* processes,
-             QObject* execHolder,
-             bool animate);
-    ~Launcher();
+    LauncherApplet(ConfigManager* cfgMan,
+                   Panel* parentPanel,
+                   QString additionalInfo);
+    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    ~LauncherApplet();
+
+    QPushButton* mExternalWidget;
+
+private:
+    void execute(ConfigManager* cfgMan,
+                 Panel* parentPanel,
+                 QString cmd);
+
+    int mIconSize;
+    QString mEntry;
 };
 
 #endif // LAUNCHER_H

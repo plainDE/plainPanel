@@ -1,13 +1,32 @@
 #ifndef WORKSPACES_H
 #define WORKSPACES_H
 
-#include <QtGlobal>
-#include <KWindowSystem>
+#include "../../applet.h"
+
 #include <KWindowSystem>
 
-class Workspaces {
+class WorkspacesApplet : public Applet {
+    Q_OBJECT
+
 public:
-    void setCurrentSpace(qint8 newSpace);
+    WorkspacesApplet(ConfigManager* cfgMan, Panel* parentPanel, QString additionalInfo);
+    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    ~WorkspacesApplet();
+
+    QWidget* mExternalWidget;
+
+private:
+    void addButtons(ConfigManager* cfgMan, Panel* parentPanel);
+    void setWorkspace(int n);
+    QString getButtonText(ConfigManager* cfgMan, int n);
+    void accentCurrentDesktop(ConfigManager* cfgMan,
+                              Panel* parentPanel);
+
+    QString mAccent;
+    int mCountWorkspaces;
+    QList<QPushButton*> mButtonList;
+    QString mInactiveStylesheet;
+    QString mActiveStylesheet;
 };
 
 #endif // WORKSPACES_H

@@ -5,44 +5,111 @@
 #include <QJsonDocument>
 #include <QDebug>
 
-Display* kbDisplay;
-XkbDescPtr keyboard;
-XkbStateRec state;
-int displayResult;
-QString layout;
-QJsonObject layoutCodes;
-QHash<QString,QIcon> flagByCode;
+void KbLayoutApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel) {
+    mExternalWidget = new QPushButton();
+    mExternalWidget->setFont(cfgMan->mFont);
+    mExternalWidget->setObjectName("kbLayoutButton");
 
+    int buttonWidth = parentPanel->mFontMetrics->horizontalAdvance("AA");
+    if (parentPanel->mPanelLayout == Horizontal) {
+        mExternalWidget->setMaximumWidth(buttonWidth);
+    }
+    else {
+        mExternalWidget->setMaximumHeight(parentPanel->mFontMetrics->height());
+    }
 
-void KbLayoutApplet::__init__(QStringList activeLayouts) {
-    // Connect to X Server
-    kbDisplay = XkbOpenDisplay(getenv("DISPLAY"), NULL, NULL, NULL, NULL, &displayResult);
-    keyboard = XkbAllocKeyboard();
+    mExternalWidget->setFlat(true);
+    int iconSize = parentPanel->mPanelThickness / 2 + 2;
+    mExternalWidget->setIconSize(QSize(iconSize, iconSize));
+}
 
-    QFile file;
-    QString data;
+void KbLayoutApplet::repeatingAction(ConfigManager*, Panel*, bool) {
+    QString code = getCurrentLayoutISOCode();
+    mExternalWidget->setIcon(mFlagByCode[code]);
+    mExternalWidget->setToolTip(code);
+}
 
-    file.setFileName("/usr/share/plainDE/layouts.json");
-    file.open(QIODevice::ReadOnly | QIODevice::Text);
-    data = file.readAll();
-    file.close();
+void KbLayoutApplet::repeatingAction(ConfigManager*, Panel*) {
+    QString code = getCurrentLayoutISOCode();
+    mExternalWidget->setText(code);
+}
 
-    layoutCodes = QJsonDocument::fromJson(data.toUtf8()).object();
+void KbLayoutApplet::activate(ConfigManager* cfgMan, Panel* parentPanel) {
+    mInterval = 350;
+    mTimer = new QTimer(this);
+    mTimer->setInterval(mInterval);
+    if (cfgMan->mUseCountryFlag) {
+        connect(mTimer, &QTimer::timeout, this, [this, cfgMan, parentPanel]() {
+            repeatingAction(cfgMan, parentPanel, true);
+        });
+    }
+    else {
+        connect(mTimer, &QTimer::timeout, this, [this, cfgMan, parentPanel]() {
+            repeatingAction(cfgMan, parentPanel);
+        });
+    }
+    mTimer->start();
+}
 
-    foreach (QString layout, activeLayouts) {
-        flagByCode[layout] = QIcon("/usr/share/flags/" + layout + ".png");
+void KbLayoutApplet::setLayouts(ConfigManager* cfgMan, Panel* parentPanel) {
+    // Using setxkbmap to set keyboard layouts and toggle method
+    QString layouts = cfgMan->mKbLayouts;
+    QString toggleMethod = cfgMan->mKbToggleMethod;
+
+    if (!layouts.isEmpty() && !toggleMethod.isEmpty()) {
+        QProcess* setxkbmapProcess = new QProcess(parentPanel->mExecHolder);
+        setxkbmapProcess->start("setxkbmap", {"-layout",
+                                              layouts,
+                                              "-option",
+                                              toggleMethod});
+    }
+    else {
+        qDebug() << "Incorrect format of kbLayouts or kbToggleMethod "
+                    "config entry. Couldn't run setxkbmap. Check these "
+                    "entries in ~/.config/plainDE/config.json file.";
     }
 }
 
-QString KbLayoutApplet::getCurrentKbLayout() {
-    // Obtain symbolic names from the server
-    XkbGetNames(kbDisplay, XkbGroupNamesMask, keyboard);
-    XkbGetState(kbDisplay, XkbUseCoreKbd, &state);
-
-    layout = XGetAtomName(kbDisplay, keyboard->names->groups[state.group]);
-    return layoutCodes[layout].toString();
+void KbLayoutApplet::connectToXServer() {
+    mKbDisplay = XkbOpenDisplay(getenv("DISPLAY"), NULL, NULL, NULL, NULL, &mDisplayResult);
+    mKeyboard = XkbAllocKeyboard();
 }
 
-QIcon KbLayoutApplet::getCurrentFlag() {
-    return flagByCode[KbLayoutApplet::getCurrentKbLayout()];
+void KbLayoutApplet::setISOCodes() {
+    QFile file("/usr/share/plainDE/layouts.json");
+    file.open(QIODevice::ReadOnly | QIODevice::Text);
+    QString data = file.readAll();
+    file.close();
+    mLayoutCodes = QJsonDocument::fromJson(data.toUtf8()).object();
+}
+
+void KbLayoutApplet::cacheFlagIcons(ConfigManager* cfgMan) {
+    foreach (QString layout, cfgMan->mKbLayouts.split(',')) {
+        mFlagByCode[layout] = QIcon("/usr/share/flags/" + layout + ".png");
+    }
+}
+
+KbLayoutApplet::KbLayoutApplet(ConfigManager* cfgMan,
+                               Panel* parentPanel,
+                               QString additionalInfo) : Applet(cfgMan, parentPanel, additionalInfo) {
+    setLayouts(cfgMan, parentPanel);
+    setISOCodes();
+    cacheFlagIcons(cfgMan);
+    connectToXServer();
+}
+
+QString KbLayoutApplet::getCurrentLayoutISOCode() {
+    // Obtain symbolic names from the server
+    XkbGetNames(mKbDisplay, XkbGroupNamesMask, mKeyboard);
+    XkbGetState(mKbDisplay, XkbUseCoreKbd, &mState);
+
+    // Get language code
+    mLayout = XGetAtomName(mKbDisplay, mKeyboard->names->groups[mState.group]);
+
+    // Returning converted ISO code
+    return mLayoutCodes[mLayout].toString();
+}
+
+KbLayoutApplet::~KbLayoutApplet() {
+
 }

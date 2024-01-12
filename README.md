@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="readme-icon.png" width="96">
+  <img src="readme_icon.png" width="96">
   <h1>plainPanel</h1>
-  <p>Lightweight panel for OpenBox, FluxBox and other window managers.</p>
+  <p>Lightweight panel for OpenBox, FluxBox, and other window managers.</p>
  
   <img src="https://img.shields.io/github/last-commit/plainDE/plainPanel?style=plastic">
   <img src="https://img.shields.io/github/license/plainDE/plainPanel?style=plastic">
@@ -15,7 +15,7 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/extensions.png"> Battery,<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/extensions.png"> Spacer,
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/workspace-switcher-top-left.png"> Worskpaces,
-  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/preferences-system-sound.png"> MPRIS,
+  <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/preferences-system-sound.png"> MPRIS Playback Control,
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/preferences-system-sound.png"> Volume,
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/extensions.png"> SNI tray,<br>
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/apps/22/keyboard.png"> Keyboard Layout,
@@ -25,18 +25,13 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/categories/22/cs-network.png"> Local IPv4 Indicator
   
   <h2>Screenshots</h2>
-  <img src="scr-0.6.3.png" width="853">
-  
-  <h2>Dependencies</h2>
-  <code>git</code>, <code>qt5-base</code>, <code>xorg</code>, <code>noto-fonts-emoji</code>, <code>polkit</code>, <code>ttf-opensans</code>, <code>make</code>, <code>alsa-utils</code>, <code>kwindowsystem</code>, <code>python3</code>, <code>xcompmgr</code>, <code>upower</code>
+  <img src="scr-0.7.png" width="853">
   
   <h2>Installation</h2>
-  Use <a href="https://github.com/plainDE/plainInstaller">plainInstaller</a>, a script that will download, compile and install everything automatically.<br><br>
-  
-  Now add <code>plainPanel</code> to OpenBox/FluxBox/... autostart and enjoy!
+  For the installation guide, refer to <a href="https://plainde.github.io/docs.github.io/installation.html">docs</a>.
   
   <h2>Customizing</h2>
-  You can either edit ~/.config/plainDE/config.json manually (refer to documentation) or use <a href="https://github.com/plainDE/plainControlCenter">plainControlCenter</a>.
+  You can either edit ~/.config/plainDE/config.json manually (refer to <a href="https://plainde.github.io/docs.github.io/config.html">docs</a>) or use <a href="https://github.com/plainDE/plainControlCenter">plainControlCenter</a>.
   
   <h2>How can I help you?</h2>
   <ul>
@@ -48,10 +43,9 @@
     <li>...</li>
   </ul>
   
-  Any help is appreciated.
-  Email us at <a href="mailto:highsierra.2007@gmail.com">highsierra.2007@gmail.com</a>
-  
+  Any help is appreciated. Use GitHub Issues to send your feedback.
+
   <h2>Miscellaneous</h2>
-  <b>Note</b>. Mint-Y/Mint-L is recommended icon theme (we use few Mint-Y-only icons).<br>
+  <b>Note</b>. Mint-Y/Mint-L is recommended icon theme (we use a few Mint-Y-only icons).<br>
   
 </div>

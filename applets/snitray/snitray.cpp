@@ -1,13 +1,71 @@
 #include "snitray.h"
 
-QDBusConnection sessionBus = QDBusConnection::sessionBus();
+QDBusConnection mSNITrayBus = QDBusConnection::sessionBus();
 
-void SNITray::init() {
+void SNITrayApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel) {
+    mExternalWidget = new QFrame();
+    mExternalWidget->setFrameStyle(QFrame::NoFrame | QFrame::Plain);
+
+    QBoxLayout* layout;
+    if (parentPanel->mPanelLayout == Horizontal) {
+        layout = new QHBoxLayout(mExternalWidget);
+    }
+    else {  // Vertical
+        layout = new QVBoxLayout(mExternalWidget);
+    }
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(parentPanel->mSpacing);
+
+    // Make connections
+    connect(mStatusNotifierWatcher, &StatusNotifierWatcher::StatusNotifierItemRegistered,
+            this, [this, layout]() {
+        QString service = mStatusNotifierWatcher->registeredStatusNotifierItems().constLast();
+        qDebug() << "Adding icon to SNI layout..." << service;
+
+        QPushButton* sniPushButton = new QPushButton();
+        sniPushButton->setFlat(true);
+        sniPushButton->setIcon(QIcon::fromTheme("dialog-question"));
+        mSNIWidgets[service] = sniPushButton;
+        layout->addWidget(sniPushButton);
+
+        // https://github.com/openwebos/qt/blob/master/tools/qdbus/qdbus/qdbus.cpp
+        QDBusInterface iface(service, "/StatusNotifierItem", "org.freedesktop.DBus.Properties");
+        QDBusMessage response = iface.call("Get", "org.kde.StatusNotifierItem", "ToolTip");
+        QString tooltip;
+        foreach (QVariant v, response.arguments()) {
+            if (v.userType() == qMetaTypeId<QDBusVariant>()) {
+                tooltip = qvariant_cast<QDBusVariant>(v).variant().toString();
+                break;
+            }
+        }
+        if (tooltip.isEmpty()) {
+            tooltip = service;
+        }
+
+        QtConcurrent::run(this, &SNITrayApplet::setSNIIcon, service, sniPushButton);
+
+        this->connect(sniPushButton, &QPushButton::clicked, this, [this, service]() {
+            qDebug() << "Activate";
+            QtConcurrent::run(this, &SNITrayApplet::activate, service);
+        });
+    });
+
+    this->connect(mStatusNotifierWatcher, &StatusNotifierWatcher::StatusNotifierItemUnregistered,
+                  this, [this]() {
+        QString service = mStatusNotifierWatcher->deletedItems.last();
+        delete mSNIWidgets[service];
+        mSNIWidgets.remove(service);
+    });
+}
+
+SNITrayApplet::SNITrayApplet(ConfigManager* cfgMan,
+                 Panel* parentPanel,
+                 QString additionalInfo) : Applet(cfgMan, parentPanel, additionalInfo) {
     mStatusNotifierWatcher = new StatusNotifierWatcher();
     mStatusNotifierWatcher->RegisterStatusNotifierHost("org.plainDE.plainPanel");
 }
 
-void SNITray::setSNIIcon(QString service, QPushButton* sniPushButton) {
+void SNITrayApplet::setSNIIcon(QString service, QPushButton* sniPushButton) {
     // First of all, we try to get icon by IconName
     if (!service.contains('/')) {
         QDBusInterface iface(service, "/StatusNotifierItem", "org.freedesktop.DBus.Properties");
@@ -20,11 +78,27 @@ void SNITray::setSNIIcon(QString service, QPushButton* sniPushButton) {
             }
         }
 
-        // If there is no IconName, we try to get IconPixmap
+        QDBusConnectionInterface* connIface = mSNITrayBus.interface();
+        QDBusReply<uint> servicePID = connIface->servicePid(service);
+
+        QString path = QString("/proc/%1/exe").arg(servicePID);
+        QString pathToExec = QFile::symLinkTarget(path);
+        QFileInfo info(pathToExec);
+        QString workDirPath = info.dir().absolutePath();
+
+        QIcon icon;
+
         if (!iconName.isEmpty() && QIcon::hasThemeIcon(iconName)) {
-            sniPushButton->setIcon(QIcon::fromTheme(iconName));
+            icon = QIcon::fromTheme(iconName);
         }
-        else {
+        else if (!iconName.isEmpty()) {
+            icon = QIcon(QString("%1/%2").arg(workDirPath, iconName));
+        }
+
+        if (!icon.isNull()) {
+            sniPushButton->setIcon(icon);
+        }
+        else {  // If there is no icon by IconName, we try to get IconPixmap
             // We get icon byte array from service/StatusNotifierItem/org.kde.StatusNotifierItem/IconPixmap
             QDBusInterface interface(service, "/StatusNotifierItem", "org.freedesktop.DBus.Properties");
             resp = interface.call("Get", "org.kde.StatusNotifierItem", "IconPixmap");
@@ -65,19 +139,19 @@ void SNITray::setSNIIcon(QString service, QPushButton* sniPushButton) {
                 sniPushButton->setIcon(QIcon(QPixmap::fromImage(img)));
             }
             else {
-                qDebug() << "no iconpixmap.";
                 // If there is no IconPixmap, this is the last chance
                 // Let's try to get icon by WinID of process that runs a D-Bus service
-                QDBusConnectionInterface* connIface = sessionBus.interface();
-                QDBusReply<uint> servicePID = connIface->servicePid(service);
 
+                qDebug() << "no iconpixmap";
+                QDBusConnectionInterface* connIface = mSNITrayBus.interface();
+                QDBusReply<uint> servicePID = connIface->servicePid(service);
                 qDebug() << "servicePID:" << servicePID;
 
-
+                bool found = false;
                 for (int i = 0; i < 5; ++i) {
-                    bool found = false;
-                    WindowList::getWinList(mWinIDs);
-                    for (auto it = mWinIDs->cbegin(), end = mWinIDs->cend(); it != end; ++it) {
+                    found = false;
+                    QList<WId> winIDs = KWindowSystem::windows();
+                    for (auto it = winIDs.cbegin(), end = winIDs.cend(); it != end; ++it) {
                         KWindowInfo pIDInfo(*it, NET::WMPid);
                         qDebug() << pIDInfo.pid();
                         if ((uint)pIDInfo.pid() == servicePID.value()) {
@@ -91,6 +165,10 @@ void SNITray::setSNIIcon(QString service, QPushButton* sniPushButton) {
                     }
                     QThread::sleep(2);
                 }
+
+                if (!found) {
+                    sniPushButton->setIcon(QIcon::fromTheme("dialog-question"));
+                }
             }
         }
     }
@@ -99,7 +177,7 @@ void SNITray::setSNIIcon(QString service, QPushButton* sniPushButton) {
     }
 }
 
-void SNITray::activate(QString service) {
+void SNITrayApplet::activate(QString service) {
     QDBusMessage message = QDBusMessage::createMethodCall(service,
                                                           "/StatusNotifierItem",
                                                           "org.kde.StatusNotifierItem",
@@ -109,14 +187,15 @@ void SNITray::activate(QString service) {
     args.append(0);
 
     message.setArguments(args);
-    sessionBus.call(message);
+    mSNITrayBus.call(message);
 }
 
-SNITray::SNITray() {
-    init();
-    mWinIDs = new QList<WId>;
-}
-
-SNITray::~SNITray() {
+SNITrayApplet::~SNITrayApplet() {
     delete mStatusNotifierWatcher;
+
+    foreach (QPushButton* button, mSNIWidgets.values()) {
+        delete button;
+    }
+
+    delete mExternalWidget;
 }

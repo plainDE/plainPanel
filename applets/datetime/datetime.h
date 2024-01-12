@@ -1,53 +1,40 @@
-#include "../../panel.h"
-
-#include <QCalendarWidget>
-
 #ifndef DATETIME_H
 #define DATETIME_H
 
-enum Month {
-    Jan = 1,
-    Feb,
-    Mar,
-    Apr,
-    May,
-    Jun,
-    Jul,
-    Aug,
-    Sep,
-    Oct,
-    Nov,
-    Dec
-};
+#include "../../applet.h"
 
-class DateTimeApplet : public QCalendarWidget {
+#include <QCalendarWidget>
+
+class DateTimeApplet : public Applet {
 public:
-    QString __getDisplayedData__(QString timeFormat, QString dateFormat, PanelLayout panelLayout);
-    QString __getDisplayedData__(QString timeFormat);
-    void createUI(Qt::DayOfWeek firstDay,
-                  PanelLocation panelLocation,
-                  QFont font,
-                  bool showWeekNumbers,
-                  int panelThickness,
-                  int screenWidth,
-                  int screenHeight,
-                  int buttonCoord1,
-                  int buttonCoord2,
-                  double opacity);
-
-    QString getCurrentTime(QString timeFormat);
-    QString getCurrentDate(QString dateFormat);
-    DateTimeApplet(Qt::DayOfWeek firstDay,
-                   PanelLocation panelLocation,
-                   QFont font,
-                   bool showWeekNumbers,
-                   int panelThickness,
-                   int screenWidth,
-                   int screenHeight,
-                   int buttonCoord1,
-                   int buttonCoord2,
-                   double opacity);
+    DateTimeApplet(ConfigManager* cfgMan,
+                   Panel* parentPanel,
+                   QString additionalInfo);
+    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    void internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    void repeatingAction(ConfigManager* cfgMan, Panel* parentPanel);
+    void repeatingAction(ConfigManager* cfgMan, Panel* parentPanel, bool showDate);
+    void activate(ConfigManager* cfgMan, Panel* parentPanel);
     ~DateTimeApplet();
+
+    QPushButton* mExternalWidget;
+
+
+private:
+    QString getTime();
+    QString getDate();
+    QString getDisplayedData(bool showDate);
+    QString getDisplayedData();
+
+    QCalendarWidget* mCalendarWidget;
+    QString mTimeFormat;
+    QString mDateFormat;
+    bool mShowDate;
+
+    PanelLayout mLayout;
+
+    int mInterval;
+    QTimer* mTimer;
 };
 
 #endif // DATETIME_H

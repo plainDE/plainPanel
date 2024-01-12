@@ -1,26 +1,23 @@
 #include "launcher.h"
 
-Launcher::Launcher(Panel* parentPanel,
-                   QString entry,
-                   int iconSz,
-                   QString iconTheme,
-                   QList<QProcess*>* processes,
-                   QObject* execHolder,
-                   bool animate) {
-    QIcon::setThemeName(iconTheme);
-    this->setIconSize(QSize(iconSz, iconSz));
-    this->setFlat(true);
+void LauncherApplet::externalWidgetSetup(ConfigManager* cfgMan,
+                                         Panel* parentPanel) {
+    QIcon::setThemeName(cfgMan->mIconTheme);
 
-    QStringList launcherData = entry.split(':');
-    if (entry.endsWith(".desktop")) {
+    mExternalWidget = new QPushButton();
+    mExternalWidget->setIconSize(QSize(parentPanel->mLauncherIconSize,
+                                       parentPanel->mLauncherIconSize));
+    mExternalWidget->setFlat(true);
+
+    QStringList launcherData = mEntry.split(':');
+    if (mEntry.endsWith(".desktop")) {
         // Desktop Entry
         QString desktopEntryPath;
-
         if (QFile::exists("/usr/share/applications/" + launcherData[1])) {
             desktopEntryPath = "/usr/share/applications/" + launcherData[1];
         }
         else {
-            QString homeDir = getenv("HOME");
+            QString homeDir = QDir::homePath();
             desktopEntryPath = homeDir + "/.local/share/applications/" + launcherData[1];
         }
 
@@ -42,75 +39,78 @@ Launcher::Launcher(Panel* parentPanel,
         }
 
         if (QIcon::hasThemeIcon(iconPath)) {
-            this->setIcon(QIcon::fromTheme(iconPath));
+            mExternalWidget->setIcon(QIcon::fromTheme(iconPath));
         }
         else {
             if (QFile::exists(iconPath)) {
-                this->setIcon(QIcon(iconPath));
+                mExternalWidget->setIcon(QIcon(iconPath));
             }
             else {
-                this->setIcon(QIcon::fromTheme("dialog-question"));
+                mExternalWidget->setIcon(QIcon::fromTheme("dialog-question"));
             }
         }
 
-        this->setToolTip(tooltipLabel);
-
-        parentPanel->connect(this, &QPushButton::clicked, parentPanel,
-                      [this, exec, execHolder, processes, animate, iconSz]() {
-            QProcess* process = new QProcess(execHolder);
-            processes->append(process);
-            process->start(exec);
-
-            if (animate) {
-                QPropertyAnimation* animation = new QPropertyAnimation(this, "iconSize");
-                animation->setDuration(200);
-                animation->setStartValue(this->iconSize());
-                animation->setEndValue(QSize(64, 64));
-                animation->start();
-                this->connect(animation, &QPropertyAnimation::finished, this, [this, iconSz, animation]() {
-                    //this->setIconSize(QSize(iconSz, iconSz));
-                    animation->setDuration(50);
-                    animation->setStartValue(this->iconSize());
-                    animation->setEndValue(QSize(iconSz, iconSz));
-                    animation->start();
-                });
-            }
+        mExternalWidget->setToolTip(tooltipLabel);
+        connect(mExternalWidget, &QPushButton::clicked, this, [this, exec,
+                                                               cfgMan,
+                                                               parentPanel]() {
+            execute(cfgMan, parentPanel, exec);
         });
     }
     else {
         // Arbitrary Executable
         QString iconPath = launcherData[2];
         if (QFile::exists(iconPath)) {
-            this->setIcon(QIcon(iconPath));
+            mExternalWidget->setIcon(QIcon(iconPath));
         }
         else {
-            this->setIcon(QIcon::fromTheme(iconPath));
+            mExternalWidget->setIcon(QIcon::fromTheme(iconPath));
         }
 
-        parentPanel->connect(this, &QPushButton::clicked, parentPanel,
-                             [this, launcherData, execHolder, processes, animate, iconSz]() {
-            QProcess* process = new QProcess(execHolder);
-            processes->append(process);
-            process->start(launcherData[1]);
+        if (launcherData.count() == 4) {
+            mExternalWidget->setToolTip(launcherData[3]);
+        }
 
-            if (animate) {
-                QPropertyAnimation* animation = new QPropertyAnimation(this, "iconSize");
-                animation->setDuration(200);
-                animation->setStartValue(this->iconSize());
-                animation->setEndValue(QSize(64, 64));
+        connect(mExternalWidget, &QPushButton::clicked, parentPanel,
+                [this, launcherData, cfgMan, parentPanel]() {
+            execute(cfgMan, parentPanel, launcherData[1]);
+        });
+    }
+}
+
+void LauncherApplet::execute(ConfigManager* cfgMan,
+                             Panel* parentPanel,
+                             QString cmd) {
+    QProcess* process = new QProcess(parentPanel->mExecHolder);
+    parentPanel->mProcesses.append(process);
+    process->start(cmd);
+
+    if (cfgMan->mEnableAnimation) {
+        QPropertyAnimation* animation = new QPropertyAnimation(mExternalWidget, "iconSize");
+        animation->setDuration(200);
+        animation->setStartValue(mExternalWidget->iconSize());
+        animation->setEndValue(QSize(64, 64));
+        animation->start();
+        connect(animation, &QPropertyAnimation::finished, this, [this, animation]() {
+            if (mExternalWidget != NULL) {
+                animation->setDuration(50);
+                animation->setStartValue(mExternalWidget->iconSize());
+                animation->setEndValue(QSize(mIconSize, mIconSize));
                 animation->start();
-                this->connect(animation, &QPropertyAnimation::finished, this, [this, iconSz, animation]() {
-                    //this->setIconSize(QSize(iconSz, iconSz));
-                    animation->setDuration(50);
-                    animation->setStartValue(this->iconSize());
-                    animation->setEndValue(QSize(iconSz, iconSz));
-                    animation->start();
-                });
             }
         });
     }
 }
 
-Launcher::~Launcher() {
+LauncherApplet::LauncherApplet(ConfigManager* cfgMan,
+                               Panel* parentPanel,
+                               QString additionalInfo) : Applet(cfgMan,
+                                                                parentPanel,
+                                                                additionalInfo) {
+    mIconSize = parentPanel->mLauncherIconSize;
+    mEntry = additionalInfo;
+}
+
+LauncherApplet::~LauncherApplet() {
 
 }

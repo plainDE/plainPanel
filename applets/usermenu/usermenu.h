@@ -1,41 +1,27 @@
 #ifndef USERMENU_H
 #define USERMENU_H
 
+#include "../../applet.h"
+
 #include <QWidget>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QProcess>
 #include <QFile>
 
-#include "../../panel.h"
 
-class UserMenu : public QWidget {
+class UserMenuApplet : public Applet {
     Q_OBJECT
 
 public:
-    void createUI(Panel* parentPanel,
-                  QObject* execHolder,
-                  PanelLocation panelLocation,
-                  int panelThickness,
-                  int screenWidth,
-                  int screenHeight,
-                  QFont font,
-                  int buttonCoord1,
-                  int buttonCoord2,
-                  QString stylesheet,
-                  double opacity);
-    UserMenu(Panel* parentPanel,
-             QObject* execHolder,
-             PanelLocation panelLocation,
-             int panelThickness,
-             int screenWidth,
-             int screenHeight,
-             QFont font,
-             int buttonCoord1,
-             int buttonCoord2,
-             QString stylesheet,
-             double opacity);
-    ~UserMenu();
+    UserMenuApplet(ConfigManager* cfgMan, Panel* parentPanel, QString additionalInfo);
+    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    void internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    ~UserMenuApplet();
+
+    QPushButton* mExternalWidget;
+    QWidget* mInternalWidget;
+
 
 signals:
     void panelShouldQuit();

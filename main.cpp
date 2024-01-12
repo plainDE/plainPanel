@@ -18,5 +18,23 @@ int main(int argc, char *argv[]) {
 
     Initializer* init = new Initializer(&a);
 
+
+    /*QWidget w;
+    w.setObjectName("panel");
+    w.setAttribute(Qt::WA_X11NetWmWindowTypeDock);
+    w.setAttribute(Qt::WA_TranslucentBackground);
+    w.setAttribute(Qt::WA_NoSystemBackground);
+    w.setAttribute(Qt::WA_TransparentForMouseEvents);
+    w.setGeometry(0, 0, 1152, 28);
+    w.setStyleSheet("QWidget#panel { background-color: transparent; }");
+    w.setPalette(Qt::transparent);
+    w.setAutoFillBackground(false);
+    w.setAttribute(Qt::WA_OpaquePaintEvent);
+    QVBoxLayout* layout = new QVBoxLayout();
+    layout->setContentsMargins(1, 1, 1, 1);
+    w.setLayout(layout);
+    w.layout()->addWidget(new QPushButton("test"));
+    w.show();*/
+
     a.exec();
 }

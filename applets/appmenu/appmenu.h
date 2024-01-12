@@ -1,7 +1,9 @@
 #ifndef APPMENU_H
 #define APPMENU_H
 
-#include <QWidget>
+#include "../../applet.h"
+
+
 #include <QTabWidget>
 #include <QLineEdit>
 #include <QListWidget>
@@ -13,6 +15,7 @@
 #include <QProcess>
 
 #include "../../panel.h"
+#include "../../configman.h"
 
 
 struct App {
@@ -22,63 +25,43 @@ struct App {
     bool display;
 };
 
-class AppMenu : public QWidget {
+class AppMenuApplet : public Applet {
 public:
-    AppMenu(QObject *execHolder,
-            PanelLocation panelLocation,
-            int panelThickness,
-            int screenWidth,
-            int screenHeight,
-            QFont font,
-            int buttonCoord1,
-            int buttonCoord2,
-            bool useTriangularTabs,
-            QString accent,
-            QString stylesheet,
-            double opacity,
-            QVariantList *favApps);
-    void setAppletUI(QObject *execHolder,
-                     PanelLocation panelLocation,
-                     int panelThickness,
-                     int screenWidth,
-                     int screenHeight,
-                     QFont font,
-                     int buttonCoord1,
-                     int buttonCoord2,
-                     bool useTriangularTabs,
-                     QString accent,
-                     QString stylesheet,
-                     double opacity);
+    AppMenuApplet(ConfigManager* cfgMan,
+                  Panel* parentPanel,
+                  QString additionalInfo);
+    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    void internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    ~AppMenuApplet();
+
+    QPushButton* mExternalWidget;
+    QWidget* mInternalWidget;
+
+private:
     App readDesktopEntry(QString desktopEntryPath);
-    void execApp(QObject *parent, QString exec);
-    void buildMenu(QListWidget *appsList, QString filter);
-    void buildFavMenu(QListWidget *favAppsList, QVariantList *favDesktopEntries);
+    void execApp(QObject* parent, QString exec);
+    void buildMenu(QListWidget* appsList, QString filter);
+    void buildFavMenu(ConfigManager* cfgMan, QListWidget* favAppsList);
 
-    QVBoxLayout *mMainLayout;
-    QTabWidget *mTabWidget;
+    QVBoxLayout* mMainLayout;
+    QTabWidget* mTabWidget;
 
-    QWidget *mAllAppsTab;
-    QVBoxLayout *mAllAppsLayout;
-    QLineEdit *mSearchBox;
-    QListWidget *mAppsList;
+    QWidget* mAllAppsTab;
+    QVBoxLayout* mAllAppsLayout;
+    QLineEdit* mSearchBox;
+    QListWidget* mAppsList;
 
-    QWidget *mFavAppsTab;
-    QVBoxLayout *mFavAppsLayout;
-    QListWidget *mFavAppsList;
+    QWidget* mFavAppsTab;
+    QVBoxLayout* mFavAppsLayout;
+    QListWidget* mFavAppsList;
 
-    QWidget *mRunTab;
-    QVBoxLayout *mRunLayout;
-    QLabel *mRunLabel;
-    QLineEdit *mCmdLineEdit;
-    QPushButton *mRunPushButton;
+    QWidget* mRunTab;
+    QVBoxLayout* mRunLayout;
+    QLabel* mRunLabel;
+    QLineEdit* mCmdLineEdit;
+    QPushButton* mRunPushButton;
 
     QHash<QListWidgetItem*, QString> mExecByItem;
-    QVariantList *mFavApps;
-
-    ~AppMenu();
-
-signals:
-
 };
 
 #endif // APPMENU_H
