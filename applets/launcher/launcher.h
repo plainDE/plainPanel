@@ -1,7 +1,7 @@
 #ifndef LAUNCHER_H
 #define LAUNCHER_H
 
-#include "../../applet.h"
+#include "../../staticapplet.h"
 
 #include <QPushButton>
 #include <QString>
@@ -11,21 +11,16 @@
 #include <QIcon>
 #include <QPropertyAnimation>
 
-class LauncherApplet : public Applet {
+class LauncherApplet : public StaticApplet {
     Q_OBJECT
 public:
-    LauncherApplet(ConfigManager* cfgMan,
-                   Panel* parentPanel,
-                   QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    LauncherApplet(ConfigManager* cfgMan, Panel* parentPanel, QString entry);
+    void externalWidgetSetup() override;
+    QIcon resolveIconNameOrPath(QString iconNameOrPath);
     ~LauncherApplet();
 
-    QPushButton* mExternalWidget;
-
 private:
-    void execute(ConfigManager* cfgMan,
-                 Panel* parentPanel,
-                 QString cmd);
+    void execute(QString cmd);
 
     int mIconSize;
     QString mEntry;

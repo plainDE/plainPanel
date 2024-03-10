@@ -1,26 +1,23 @@
 #ifndef WORKSPACES_H
 #define WORKSPACES_H
 
-#include "../../applet.h"
+#include "../../staticapplet.h"
 
 #include <KWindowSystem>
 
-class WorkspacesApplet : public Applet {
+class WorkspacesApplet : public StaticApplet {
     Q_OBJECT
 
 public:
-    WorkspacesApplet(ConfigManager* cfgMan, Panel* parentPanel, QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    WorkspacesApplet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
     ~WorkspacesApplet();
 
-    QWidget* mExternalWidget;
-
 private:
-    void addButtons(ConfigManager* cfgMan, Panel* parentPanel);
+    void addButtons();
     void setWorkspace(int n);
-    QString getButtonText(ConfigManager* cfgMan, int n);
-    void accentCurrentDesktop(ConfigManager* cfgMan,
-                              Panel* parentPanel);
+    QString getButtonText(int n);
+    void accentCurrentDesktop();
 
     QString mAccent;
     int mCountWorkspaces;

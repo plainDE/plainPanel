@@ -1,7 +1,7 @@
 #ifndef SNITRAY_H
 #define SNITRAY_H
 
-#include "../../applet.h"
+#include "../../staticapplet.h"
 #include "statusnotifierwatcher.h"
 
 #include <QPushButton>
@@ -11,13 +11,11 @@
 #include <QThread>
 #include <KWindowSystem>
 
-class SNITrayApplet : public Applet {
+class SNITrayApplet : public StaticApplet {
 public:
-    SNITrayApplet(ConfigManager* cfgMan, Panel* parentPanel, QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    SNITrayApplet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
     ~SNITrayApplet();
-
-    QFrame* mExternalWidget;
 
 private:
     void setSNIIcon(QString service, QPushButton* sniPushButton);

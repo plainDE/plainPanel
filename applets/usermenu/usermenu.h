@@ -1,7 +1,8 @@
 #ifndef USERMENU_H
 #define USERMENU_H
 
-#include "../../applet.h"
+#include "../../staticapplet.h"
+#include "../../initializer.h"
 
 #include <QWidget>
 #include <QMessageBox>
@@ -10,18 +11,14 @@
 #include <QFile>
 
 
-class UserMenuApplet : public Applet {
+class UserMenuApplet : public StaticApplet {
     Q_OBJECT
 
 public:
-    UserMenuApplet(ConfigManager* cfgMan, Panel* parentPanel, QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    UserMenuApplet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
+    void internalWidgetSetup() override;
     ~UserMenuApplet();
-
-    QPushButton* mExternalWidget;
-    QWidget* mInternalWidget;
-
 
 signals:
     void panelShouldQuit();

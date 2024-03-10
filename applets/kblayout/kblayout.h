@@ -1,4 +1,4 @@
-#include "../../applet.h"
+#include "../../dynamicapplet.h"
 
 #include <QIcon>
 
@@ -24,39 +24,35 @@
 #define KBLAYOUT_H
 
 
-class KbLayoutApplet : public Applet {
+class KbLayoutApplet : public DynamicApplet {
 public:
-    KbLayoutApplet(ConfigManager* cfgMan,
-                   Panel* parentPanel,
-                   QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void repeatingAction(ConfigManager* cfgMan,
-                         Panel* parentPanel,
-                         bool useFlag);
-    void repeatingAction(ConfigManager* cfgMan,
-                         Panel* parentPanel);
-    void activate(ConfigManager* cfgMan, Panel* parentPanel);
+    KbLayoutApplet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
+    void internalWidgetSetup() override;
+    void repeatingAction() override;
+    void repeatingAction(bool);
+    void activate() override;
     ~KbLayoutApplet();
-
-    QPushButton* mExternalWidget;
 
 private:
     void connectToXServer();
-    void cacheFlagIcons(ConfigManager* cfgMan);
+    void cacheFlagIcons();
     void setISOCodes();
     QString getCurrentLayoutISOCode();
-    void setLayouts(ConfigManager* cfgMan, Panel* parentPanel);
+    void setxkbmap(QString layouts, QString toggleMethod);
+    void setLayouts();
+    void setChooserIndication();
+    void resetChooserIndication();
 
     Display* mKbDisplay;
     XkbDescPtr mKeyboard;
     XkbStateRec mState;
     int mDisplayResult;
     QString mLayout;
+    QString mLayoutCode;
     QJsonObject mLayoutCodes;
     QHash<QString,QIcon> mFlagByCode;
-
-    int mInterval;
-    QTimer* mTimer;
+    QHash<QString,QPushButton*> mButtonByCode;
 };
 
 #endif // KBLAYOUT_H

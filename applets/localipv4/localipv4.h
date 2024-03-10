@@ -1,7 +1,7 @@
 #ifndef LOCALIP_H
 #define LOCALIP_H
 
-#include "../../applet.h"
+#include "../../dynamicapplet.h"
 
 #include <QGraphicsScene>
 #include <QGraphicsTextItem>
@@ -11,15 +11,12 @@
 #include <QList>
 #include <QDebug>
 
-class LocalIPv4Applet : public Applet {
+class LocalIPv4Applet : public DynamicApplet {
 public:
-    LocalIPv4Applet(ConfigManager* cfgMan, Panel* parentPanel, QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void repeatingAction(ConfigManager* cfgMan, Panel* parentPanel);
-    void activate(ConfigManager* cfgMan, Panel* parentPanel);
+    LocalIPv4Applet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
+    void repeatingAction() override;
     ~LocalIPv4Applet();
-
-    QGraphicsView* mExternalWidget;
 
 private:
     QString getLocalIP(QString ifname);
@@ -29,9 +26,6 @@ private:
     QGraphicsTextItem* mTextItem;
     QString mLastIP;
     int mIPAngle;
-
-    int mInterval;
-    QTimer* mTimer;
 };
 
 #endif // LOCALIP_H

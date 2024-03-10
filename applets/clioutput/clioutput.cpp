@@ -15,40 +15,32 @@ void CLIOutputApplet::readConfig() {
     mInterval = mAppletConfig["interval"].toInt();
 }
 
-void CLIOutputApplet::externalWidgetSetup(ConfigManager* cfgMan,
-                                          Panel* parentPanel) {
+void CLIOutputApplet::externalWidgetSetup() {
     mExternalWidget = new QPushButton();
-    mExternalWidget->setFont(cfgMan->mFont);
-    mExternalWidget->setFlat(true);
+    mExternalWidget->setFont(mCfgMan->mFont);
+    static_cast<QPushButton*>(mExternalWidget)->setFlat(true);
     mExternalWidget->setObjectName("cliOutputButton");
 
-    connect(mExternalWidget, &QPushButton::clicked, this, [this, cfgMan, parentPanel]() {
-        qDebug() << "CLI Output applet clicked";
+    connect(static_cast<QPushButton*>(mExternalWidget),
+            &QPushButton::clicked, this, [this]() {
         mTimer->stop();
-        repeatingAction(cfgMan, parentPanel);
-        activate(cfgMan, parentPanel);
+        activate();
     });
 }
 
-void CLIOutputApplet::activate(ConfigManager* cfgMan, Panel* parentPanel) {
-    mTimer->setInterval(mInterval);
-    connect(mTimer, &QTimer::timeout, this, [this, cfgMan, parentPanel]() {
-        repeatingAction(cfgMan, parentPanel);
-    });
-    mTimer->start();
-}
-
-void CLIOutputApplet::repeatingAction(ConfigManager*, Panel*) {
+void CLIOutputApplet::repeatingAction() {
     mProcess->start(mCommand);
 
     // Data that will be shown while command is running
     if (QIcon::hasThemeIcon(mWaitData[0])) {
-        mExternalWidget->setIcon(QIcon::fromTheme(mWaitData[0]));
+        static_cast<QPushButton*>(mExternalWidget)->setIcon(
+            QIcon::fromTheme(mWaitData[0]));
     }
     else {
-        mExternalWidget->setIcon(QIcon(mWaitData[0]));
+        static_cast<QPushButton*>(mExternalWidget)->setIcon(
+            QIcon(mWaitData[0]));
     }
-    mExternalWidget->setText(mWaitData[1]);
+    static_cast<QPushButton*>(mExternalWidget)->setText(mWaitData[1]);
 }
 
 void CLIOutputApplet::setData() {
@@ -77,26 +69,30 @@ void CLIOutputApplet::setData() {
         }
 
         if (QIcon::hasThemeIcon(result[0])) {
-            mExternalWidget->setIcon(QIcon::fromTheme(result[0]));
+            static_cast<QPushButton*>(mExternalWidget)->setIcon(
+                QIcon::fromTheme(result[0]));
         }
         else {
-            mExternalWidget->setIcon(QIcon(result[0]));
+            static_cast<QPushButton*>(mExternalWidget)->setIcon(
+                QIcon(result[0]));
         }
-        mExternalWidget->setText(result[1]);
+        static_cast<QPushButton*>(mExternalWidget)->setText(result[1]);
     }
     else if (!mAppletType.compare("stdout")) {
         QString stdoutData = mProcess->readAllStandardOutput();
-        mExternalWidget->setText(stdoutData);
+        static_cast<QPushButton*>(mExternalWidget)->setText(stdoutData);
     }
     else if (!mAppletType.compare("data")) {
         QStringList dataToShow = QString(mProcess->readAllStandardOutput()).split(';');
         if (QIcon::hasThemeIcon(dataToShow[0])) {
-            mExternalWidget->setIcon(QIcon::fromTheme(dataToShow[0]));
+            static_cast<QPushButton*>(mExternalWidget)->setIcon(
+                QIcon::fromTheme(dataToShow[0]));
         }
         else {
-            mExternalWidget->setIcon(QIcon(dataToShow[0]));
+            static_cast<QPushButton*>(mExternalWidget)->setIcon(
+                QIcon(dataToShow[0]));
         }
-        mExternalWidget->setText(dataToShow[1]);
+        static_cast<QPushButton*>(mExternalWidget)->setText(dataToShow[1]);
     }
     else {
         qDebug() << "Unknown" << mAppletName << "CLI Output Applet type (" << mAppletType << ")!";
@@ -105,13 +101,13 @@ void CLIOutputApplet::setData() {
 
 CLIOutputApplet::CLIOutputApplet(ConfigManager* cfgMan,
                                  Panel* parentPanel,
-                                 QString additionalInfo) : Applet(cfgMan,
-                                                                  parentPanel,
-                                                                  additionalInfo) {
-    mAppletName = additionalInfo;
+                                 QString appletName) : DynamicApplet(
+                                                           "org.plainDE.cliOutput",
+                                                           cfgMan,
+                                                           parentPanel,
+                                                           -1) {
+    mAppletName = appletName;
     readConfig();
-
-    mTimer = new QTimer(this);
 
     mProcess = new QProcess(parentPanel->mExecHolder);
     connect(mProcess,

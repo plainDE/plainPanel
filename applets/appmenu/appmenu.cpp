@@ -1,38 +1,45 @@
 #include "appmenu.h"
 
-void AppMenuApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel) {
+void AppMenuApplet::externalWidgetSetup() {
     mExternalWidget = new QPushButton();
-    mExternalWidget->setFont(cfgMan->mFont);
+    mExternalWidget->setFont(mCfgMan->mFont);
     mExternalWidget->setObjectName("appMenuButton");
-    mExternalWidget->setFlat(true);
+    static_cast<QPushButton*>(mExternalWidget)->setFlat(true);
     mExternalWidget->setToolTip("List of installed applications");
-    int appMenuIconSize = cfgMan->mMenuIconSize;
-    mExternalWidget->setIconSize(QSize(appMenuIconSize, appMenuIconSize));
+    int appMenuIconSize = mCfgMan->mMenuIconSize;
+    static_cast<QPushButton*>(mExternalWidget)->setIconSize(
+        QSize(appMenuIconSize, appMenuIconSize)
+    );
 
-    QString menuIcon = cfgMan->mMenuIcon;
+    QString menuIcon = mCfgMan->mMenuIcon;
     if (QIcon::hasThemeIcon(menuIcon)) {
-        mExternalWidget->setIcon(QIcon::fromTheme(menuIcon));
+        static_cast<QPushButton*>(mExternalWidget)->setIcon(
+            QIcon::fromTheme(menuIcon)
+        );
     }
     else {
-        mExternalWidget->setIcon(QIcon(menuIcon));
+        static_cast<QPushButton*>(mExternalWidget)->setIcon(QIcon(menuIcon));
     }
 
-    if (parentPanel->mPanelLayout == Horizontal) {
-        QString menuText = cfgMan->mMenuText;
+    if (mParentPanel->mPanelLayout == Horizontal) {
+        QString menuText = mCfgMan->mMenuText;
         if (!menuText.isEmpty()) {
-            mExternalWidget->setText(QString(" %1").arg(menuText));
+            static_cast<QPushButton*>(mExternalWidget)->setText(
+                QString(" %1").arg(menuText)
+            );
         }
     }
 
     // Make connections
-    connect(mExternalWidget, &QPushButton::clicked, this, [this, cfgMan]() {
+    connect(static_cast<QPushButton*>(mExternalWidget),
+            &QPushButton::clicked, this, [this]() {
         if (!mInternalWidget->isVisible()) {
             mTabWidget->setCurrentIndex(0);
             mSearchBox->clear();
             buildMenu(mAppsList, "");
-            buildFavMenu(cfgMan, mFavAppsList);
-            if (cfgMan->mTransparent) {
-                setBlurredBackground(mInternalWidget);
+            buildFavMenu(mCfgMan, mFavAppsList);
+            if (mCfgMan->mTransparent) {
+                setBlurredBackground();
             }
             mInternalWidget->show();
         }
@@ -44,20 +51,13 @@ void AppMenuApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPane
     });
 }
 
-void AppMenuApplet::internalWidgetSetup(ConfigManager* cfgMan,
-                                        Panel* parentPanel) {
+void AppMenuApplet::internalWidgetSetup() {
     mInternalWidget = new QWidget();
 
     // Geometry
-    QScreen* screen = parentPanel->mPanelScreen;
+    QScreen* screen = mParentPanel->mPanelScreen;
     int width = 450, height = screen->geometry().height() / 2;
-    preliminaryInternalWidgetSetup(mInternalWidget,
-                                   mExternalWidget,
-                                   cfgMan,
-                                   parentPanel,
-                                   width,
-                                   height,
-                                   true);
+    preliminaryInternalWidgetSetup(width, height, true);
 
     mInternalWidget->setObjectName("appMenu");
     mInternalWidget->setWindowTitle("plainDE App Menu");
@@ -67,8 +67,8 @@ void AppMenuApplet::internalWidgetSetup(ConfigManager* cfgMan,
     mMainLayout->setContentsMargins(4, 4, 4, 4);
 
     mTabWidget = new QTabWidget();
-    mTabWidget->setFont(cfgMan->mFont);
-    mTabWidget->setTabShape((cfgMan->mUseTriangularTabs) ? QTabWidget::Triangular : QTabWidget::Rounded);
+    mTabWidget->setFont(mCfgMan->mFont);
+    mTabWidget->setTabShape((mCfgMan->mUseTriangularTabs) ? QTabWidget::Triangular : QTabWidget::Rounded);
     mMainLayout->addWidget(mTabWidget);
 
     // All applications tab UI
@@ -80,12 +80,12 @@ void AppMenuApplet::internalWidgetSetup(ConfigManager* cfgMan,
     mSearchBox = new QLineEdit();
     mSearchBox->setPlaceholderText("🔎 " + tr("Search"));  // u+01f50e - magnifier icon
     mSearchBox->setClearButtonEnabled(true);
-    mSearchBox->setFont(cfgMan->mFont);
+    mSearchBox->setFont(mCfgMan->mFont);
     mAllAppsLayout->addWidget(mSearchBox);
 
     mAppsList = new QListWidget();
-    mAppsList->setFont(cfgMan->mFont);
-    mAppsList->setStyleSheet("QListView::item:selected { background-color: " + cfgMan->mAccent + "; color: #ffffff };");
+    mAppsList->setFont(mCfgMan->mFont);
+    mAppsList->setStyleSheet("QListView::item:selected { background-color: " + mCfgMan->mAccent + "; color: #ffffff };");
     mAllAppsLayout->addWidget(mAppsList);
 
     mTabWidget->addTab(mAllAppsTab, tr("All applications"));
@@ -96,8 +96,8 @@ void AppMenuApplet::internalWidgetSetup(ConfigManager* cfgMan,
     mFavAppsLayout->setContentsMargins(4, 4, 4, 4);
 
     mFavAppsList = new QListWidget();
-    mFavAppsList->setFont(cfgMan->mFont);
-    mFavAppsList->setStyleSheet("QListView::item:selected { background-color: " + cfgMan->mAccent + "; color: #ffffff };");
+    mFavAppsList->setFont(mCfgMan->mFont);
+    mFavAppsList->setStyleSheet("QListView::item:selected { background-color: " + mCfgMan->mAccent + "; color: #ffffff };");
     mFavAppsLayout->addWidget(mFavAppsList);
 
     mTabWidget->addTab(mFavAppsTab, tr("Favorite apps"));
@@ -108,15 +108,15 @@ void AppMenuApplet::internalWidgetSetup(ConfigManager* cfgMan,
     mRunLayout->setContentsMargins(4, 4, 4, 4);
 
     mRunLabel = new QLabel(tr("Enter command:"));
-    mRunLabel->setFont(cfgMan->mFont);
+    mRunLabel->setFont(mCfgMan->mFont);
     mRunLayout->addWidget(mRunLabel);
 
     mCmdLineEdit = new QLineEdit();
-    mCmdLineEdit->setFont(cfgMan->mFont);
+    mCmdLineEdit->setFont(mCfgMan->mFont);
     mRunLayout->addWidget(mCmdLineEdit);
 
     mRunPushButton = new QPushButton(tr("Run"));
-    mRunPushButton->setFont(cfgMan->mFont);
+    mRunPushButton->setFont(mCfgMan->mFont);
     mRunLayout->addWidget(mRunPushButton);
 
     mRunLayout->addSpacerItem(new QSpacerItem(0, 0, QSizePolicy::Ignored, QSizePolicy::Expanding));
@@ -125,7 +125,7 @@ void AppMenuApplet::internalWidgetSetup(ConfigManager* cfgMan,
 
     // Build menus
     buildMenu(mAppsList, "");
-    buildFavMenu(cfgMan, mFavAppsList);
+    buildFavMenu(mCfgMan, mFavAppsList);
 
     // Make connections
     mAllAppsTab->connect(mSearchBox, &QLineEdit::textEdited, mAllAppsTab,
@@ -133,17 +133,17 @@ void AppMenuApplet::internalWidgetSetup(ConfigManager* cfgMan,
         buildMenu(mAppsList, mSearchBox->text());
     });
     mAllAppsTab->connect(mAppsList, &QListWidget::itemActivated, mAllAppsTab,
-                         [this, parentPanel]() {
-        execApp(parentPanel->mExecHolder, mExecByItem[mAppsList->selectedItems()[0]]);
+                         [this]() {
+        execApp(mExecByItem[mAppsList->selectedItems()[0]]);
     });
     mFavAppsTab->connect(mFavAppsList, &QListWidget::itemActivated, mFavAppsTab,
-                         [this, parentPanel]() {
-        execApp(parentPanel->mExecHolder, mExecByItem[mFavAppsList->selectedItems()[0]]);
+                         [this]() {
+        execApp(mExecByItem[mFavAppsList->selectedItems()[0]]);
     });
     mRunTab->connect(mRunPushButton, &QPushButton::clicked, mInternalWidget,
-                     [this, parentPanel]() {
+                     [this]() {
         if (!mCmdLineEdit->text().isEmpty()) {
-            execApp(parentPanel->mExecHolder, mCmdLineEdit->text());
+            execApp(mCmdLineEdit->text());
             mCmdLineEdit->clear();
         }
     });
@@ -181,7 +181,8 @@ App AppMenuApplet::readDesktopEntry(QString desktopEntryPath) {
     return app;
 }
 
-void AppMenuApplet::execApp(QObject* parent, QString exec) {
+void AppMenuApplet::execApp(QString exec) {
+    QObject* parent = mParentPanel->mExecHolder;
     QProcess* process = new QProcess(parent);
     // https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-1.0.html#exec-variables
     if (exec[exec.length()-2] == "%") {
@@ -293,8 +294,11 @@ void AppMenuApplet::buildFavMenu(ConfigManager* cfgMan, QListWidget* favAppsList
 }
 
 AppMenuApplet::AppMenuApplet(ConfigManager* cfgMan,
-                             Panel* parentPanel,
-                             QString additionalInfo) : Applet(cfgMan, parentPanel, additionalInfo) {
+                             Panel* parentPanel) : StaticApplet(
+                                                       "org.plainDE.appMenu",
+                                                       cfgMan,
+                                                       parentPanel
+                                                   ) {
 
 }
 

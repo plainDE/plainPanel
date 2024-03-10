@@ -2,76 +2,63 @@
 
 QDBusConnection mBatteryBus = QDBusConnection::systemBus();
 
-void BatteryApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel) {
+bool BatteryApplet::deviceHasBattery() {
+    QDir powerSupplyDir("/sys/class/power_supply");
+    QStringList devices = powerSupplyDir.entryList();
+    foreach (QString device, devices) {
+        if (device.startsWith("BAT")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void BatteryApplet::externalWidgetSetup() {
     mExternalWidget = new QFrame();
-    mExternalWidget->setFrameStyle(QFrame::NoFrame | QFrame::Plain);
+    static_cast<QFrame*>(mExternalWidget)->setFrameStyle(
+        QFrame::NoFrame | QFrame::Plain);
     QBoxLayout* layout;
 
-    if (parentPanel->mPanelLayout == Horizontal) {
+    if (mParentPanel->mPanelLayout == Horizontal) {
         layout = new QHBoxLayout(mExternalWidget);
     }
     else {  // Vertical
         layout = new QVBoxLayout(mExternalWidget);
     }
 
-    layout->setSpacing(parentPanel->mSpacing);
+    layout->setSpacing(mParentPanel->mSpacing);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    updateBatteryState();
+    //updateBatteryState();
 
     mIconLabel = new QLabel();
     mIconLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(mIconLabel);
     mTextLabel = new QLabel();
-    mTextLabel->setFont(cfgMan->mFont);
+    mTextLabel->setFont(mCfgMan->mFont);
     mTextLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(mTextLabel);
 
-    showBatteryData();
-}
-
-void BatteryApplet::repeatingAction(ConfigManager*, Panel*) {
-    updateBatteryState();
-    showBatteryData();
-}
-
-void BatteryApplet::activate(ConfigManager* cfgMan, Panel* parentPanel) {
-    mInterval = 5000;
-    mTimer = new QTimer(this);
-    mTimer->setInterval(mInterval);
-    connect(mTimer, &QTimer::timeout, this, [this, cfgMan, parentPanel]() {
-        repeatingAction(cfgMan, parentPanel);
-    });
-    mTimer->start();
-}
-
-void BatteryApplet::showBatteryData() {
-    mTextLabel->setText(QString("%1%").arg(QString::number(mBattery.percentage)));
-    QString iconName = mBattery.iconName;
-    mIconLabel->setToolTip(iconName);
-    mTextLabel->setToolTip(iconName);
-    if (mDark) {
-        iconName += "-dark";
-    }
-    mIconLabel->setPixmap(mCache[iconName]);
+    // mBatteryBus.connect("org.freedesktop.UPower",
+    //                     "/org/freedesktop/UPower/devices/battery_" + mBatteryName,
+    //                     "org.freedesktop.DBus.Properties",
+    //                     "PropertiesChanged",
+    //                     this,
+    //                     SLOT(updateBatteryInfo(QVariant)));
 }
 
 void BatteryApplet::setBatteryName() {
     QDir powerSupplyDir("/sys/class/power_supply");
     QStringList devices = powerSupplyDir.entryList();
-    mDeviceHasBattery = false;
     foreach (QString device, devices) {
         if (device.startsWith("BAT")) {
             mBatteryName = device;
-            mDeviceHasBattery = true;
             break;
         }
     }
 }
 
-void BatteryApplet::updateBatteryState() {
-    // org.freedesktop.UPower
-
+void BatteryApplet::repeatingAction() {
     // https://github.com/openwebos/qt/blob/master/tools/qdbus/qdbus/qdbus.cpp
     QString path = "/org/freedesktop/UPower/devices/battery_" + mBatteryName;
     QDBusInterface iface("org.freedesktop.UPower",
@@ -91,6 +78,15 @@ void BatteryApplet::updateBatteryState() {
             mBattery.iconName = qvariant_cast<QDBusVariant>(v).variant().toString();
         }
     }
+
+    mTextLabel->setText(QString("%1%").arg(QString::number(mBattery.percentage)));
+    QString iconName = mBattery.iconName;
+    mIconLabel->setToolTip(iconName);
+    mTextLabel->setToolTip(iconName);
+    if (mDark) {
+        iconName += "-dark";
+    }
+    mIconLabel->setPixmap(mCache[iconName]);
 }
 
 void BatteryApplet::cacheIcons() {
@@ -107,10 +103,12 @@ void BatteryApplet::cacheIcons() {
 }
 
 BatteryApplet::BatteryApplet(ConfigManager* cfgMan,
-                             Panel* parentPanel,
-                             QString additionalInfo) : Applet(cfgMan,
-                                                              parentPanel,
-                                                              additionalInfo) {
+                             Panel* parentPanel) : DynamicApplet(
+                                                       "org.plainDE.battery",
+                                                       cfgMan,
+                                                       parentPanel,
+                                                       5000
+                                                   ) {
     mIconSize = parentPanel->mPanelThickness / 1.45;
     mDark = cfgMan->mStylesheet.contains("dark");
     setBatteryName();

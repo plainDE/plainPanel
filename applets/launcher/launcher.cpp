@@ -1,13 +1,14 @@
 #include "launcher.h"
 
-void LauncherApplet::externalWidgetSetup(ConfigManager* cfgMan,
-                                         Panel* parentPanel) {
-    QIcon::setThemeName(cfgMan->mIconTheme);
+void LauncherApplet::externalWidgetSetup() {
+    QIcon::setThemeName(mCfgMan->mIconTheme);
 
     mExternalWidget = new QPushButton();
-    mExternalWidget->setIconSize(QSize(parentPanel->mLauncherIconSize,
-                                       parentPanel->mLauncherIconSize));
-    mExternalWidget->setFlat(true);
+    static_cast<QPushButton*>(mExternalWidget)->setIconSize(
+                        QSize(mParentPanel->mLauncherIconSize,
+                              mParentPanel->mLauncherIconSize)
+                        );
+    static_cast<QPushButton*>(mExternalWidget)->setFlat(true);
 
     QStringList launcherData = mEntry.split(':');
     if (mEntry.endsWith(".desktop")) {
@@ -38,63 +39,64 @@ void LauncherApplet::externalWidgetSetup(ConfigManager* cfgMan,
             exec.chop(2);
         }
 
-        if (QIcon::hasThemeIcon(iconPath)) {
-            mExternalWidget->setIcon(QIcon::fromTheme(iconPath));
-        }
-        else {
-            if (QFile::exists(iconPath)) {
-                mExternalWidget->setIcon(QIcon(iconPath));
-            }
-            else {
-                mExternalWidget->setIcon(QIcon::fromTheme("dialog-question"));
-            }
-        }
+        static_cast<QPushButton*>(mExternalWidget)->setIcon(
+            resolveIconNameOrPath(iconPath)
+            );
 
         mExternalWidget->setToolTip(tooltipLabel);
-        connect(mExternalWidget, &QPushButton::clicked, this, [this, exec,
-                                                               cfgMan,
-                                                               parentPanel]() {
-            execute(cfgMan, parentPanel, exec);
+        connect(static_cast<QPushButton*>(mExternalWidget),
+                &QPushButton::clicked, this, [this, exec]() {
+            execute(exec);
         });
     }
     else {
         // Arbitrary Executable
         QString iconPath = launcherData[2];
-        if (QFile::exists(iconPath)) {
-            mExternalWidget->setIcon(QIcon(iconPath));
-        }
-        else {
-            mExternalWidget->setIcon(QIcon::fromTheme(iconPath));
-        }
+        static_cast<QPushButton*>(mExternalWidget)->setIcon(
+            resolveIconNameOrPath(iconPath)
+            );
 
         if (launcherData.count() == 4) {
             mExternalWidget->setToolTip(launcherData[3]);
         }
 
-        connect(mExternalWidget, &QPushButton::clicked, parentPanel,
-                [this, launcherData, cfgMan, parentPanel]() {
-            execute(cfgMan, parentPanel, launcherData[1]);
+        connect(static_cast<QPushButton*>(mExternalWidget),
+                &QPushButton::clicked, mParentPanel,
+                [this, launcherData]() {
+            execute(launcherData[1]);
         });
     }
 }
 
-void LauncherApplet::execute(ConfigManager* cfgMan,
-                             Panel* parentPanel,
-                             QString cmd) {
-    QProcess* process = new QProcess(parentPanel->mExecHolder);
-    parentPanel->mProcesses.append(process);
+QIcon LauncherApplet::resolveIconNameOrPath(QString iconNameOrPath) {
+    if (QIcon::hasThemeIcon(iconNameOrPath)) {
+        return QIcon::fromTheme(iconNameOrPath);
+    }
+    else if (QFile::exists(iconNameOrPath)) {
+        return QIcon(iconNameOrPath);
+    }
+    else {
+        return QIcon::fromTheme("dialog-question");
+    }
+}
+
+void LauncherApplet::execute(QString cmd) {
+    QProcess* process = new QProcess(mParentPanel->mExecHolder);
+    mParentPanel->mProcesses.append(process);
     process->start(cmd);
 
-    if (cfgMan->mEnableAnimation) {
+    if (mCfgMan->mEnableAnimation) {
         QPropertyAnimation* animation = new QPropertyAnimation(mExternalWidget, "iconSize");
         animation->setDuration(200);
-        animation->setStartValue(mExternalWidget->iconSize());
+        animation->setStartValue(
+            static_cast<QPushButton*>(mExternalWidget)->iconSize());
         animation->setEndValue(QSize(64, 64));
         animation->start();
         connect(animation, &QPropertyAnimation::finished, this, [this, animation]() {
-            if (mExternalWidget != NULL) {
+            if (animation != NULL && mExternalWidget != NULL) {
                 animation->setDuration(50);
-                animation->setStartValue(mExternalWidget->iconSize());
+                animation->setStartValue(
+                    static_cast<QPushButton*>(mExternalWidget)->iconSize());
                 animation->setEndValue(QSize(mIconSize, mIconSize));
                 animation->start();
             }
@@ -104,11 +106,13 @@ void LauncherApplet::execute(ConfigManager* cfgMan,
 
 LauncherApplet::LauncherApplet(ConfigManager* cfgMan,
                                Panel* parentPanel,
-                               QString additionalInfo) : Applet(cfgMan,
-                                                                parentPanel,
-                                                                additionalInfo) {
+                               QString entry) : StaticApplet(
+                                                    "org.plainDE.launcher",
+                                                    cfgMan,
+                                                    parentPanel
+                                                ) {
     mIconSize = parentPanel->mLauncherIconSize;
-    mEntry = additionalInfo;
+    mEntry = entry;
 }
 
 LauncherApplet::~LauncherApplet() {

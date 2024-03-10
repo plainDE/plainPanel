@@ -1,19 +1,19 @@
 #ifndef VOLUME_H
 #define VOLUME_H
 
-#include "../../applet.h"
+#include "../../staticapplet.h"
 
 #include <QFrame>
 #include <QProcess>
 
-class VolumeApplet : public Applet {
+class VolumeApplet : public StaticApplet {
 public:
-    VolumeApplet(ConfigManager* cfgMan, Panel* parentPanel, QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    VolumeApplet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
     ~VolumeApplet();
-    void setVolume(int newVolume, VolumeAdjustMethod method);
 
-    QFrame* mExternalWidget;
+private:
+    void setVolume(int newVolume, VolumeAdjustMethod method);
 };
 
 #endif // VOLUME_H

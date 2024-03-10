@@ -1,7 +1,7 @@
 #ifndef CLIOUTPUTAPPLET_H
 #define CLIOUTPUTAPPLET_H
 
-#include "../../applet.h"
+#include "../../dynamicapplet.h"
 
 #include <QObject>
 #include <QPushButton>
@@ -17,17 +17,14 @@
 #include <QJsonArray>
 
 
-class CLIOutputApplet : public Applet {
+class CLIOutputApplet : public DynamicApplet {
 public:
     CLIOutputApplet(ConfigManager* cfgMan,
                     Panel* parentPanel,
-                    QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void repeatingAction(ConfigManager* cfgMan, Panel* parentPanel);
-    void activate(ConfigManager* cfgMan, Panel* parentPanel);
+                    QString appletName);
+    void externalWidgetSetup() override;
+    void repeatingAction() override;
     ~CLIOutputApplet();
-
-    QPushButton* mExternalWidget;
 
 private:
     void readConfig();
@@ -39,9 +36,6 @@ private:
     QString mCommand;
     QStringList mWaitData;
     QString mAppletType;
-
-    int mInterval;
-    QTimer* mTimer;
 };
 
 #endif // CLIOUTPUTAPPLET_H

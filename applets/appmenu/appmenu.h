@@ -1,7 +1,7 @@
 #ifndef APPMENU_H
 #define APPMENU_H
 
-#include "../../applet.h"
+#include "../../staticapplet.h"
 
 
 #include <QTabWidget>
@@ -25,21 +25,16 @@ struct App {
     bool display;
 };
 
-class AppMenuApplet : public Applet {
+class AppMenuApplet : public StaticApplet {
 public:
-    AppMenuApplet(ConfigManager* cfgMan,
-                  Panel* parentPanel,
-                  QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    AppMenuApplet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
+    void internalWidgetSetup() override;
     ~AppMenuApplet();
-
-    QPushButton* mExternalWidget;
-    QWidget* mInternalWidget;
 
 private:
     App readDesktopEntry(QString desktopEntryPath);
-    void execApp(QObject* parent, QString exec);
+    void execApp(QString exec);
     void buildMenu(QListWidget* appsList, QString filter);
     void buildFavMenu(ConfigManager* cfgMan, QListWidget* favAppsList);
 

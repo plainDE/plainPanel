@@ -1,7 +1,7 @@
 #ifndef MPRISAPPLET_H
 #define MPRISAPPLET_H
 
-#include "../../applet.h"
+#include "../../staticapplet.h"
 
 #include <QWidget>
 #include <QDBusConnection>
@@ -11,23 +11,18 @@
 #include <QVariantMap>
 #include <QtConcurrent>
 
-class MPRISApplet : public Applet {
+class MPRISApplet : public StaticApplet {
     Q_OBJECT
 public:
-    MPRISApplet(ConfigManager* cfgMan,
-                Panel* parentPanel,
-                QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
+    MPRISApplet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
+    void internalWidgetSetup() override;
     ~MPRISApplet();
 
-    QPushButton* mExternalWidget;
-    QWidget* mInternalWidget;
-
 private:
-    QWidget* createPlayerCard(ConfigManager* cfgMan, QString serviceName);
-    void addCards(ConfigManager* cfgMan);
-    void setSize(ConfigManager* cfgMan, Panel* parentPanel);
+    QWidget* createPlayerCard(QString serviceName);
+    void addCards();
+    void setSize();
     void updateIdentity(QString serviceName,
                         QLabel* iconLabel,
                         QLabel* titleLabel);

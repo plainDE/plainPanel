@@ -1,4 +1,5 @@
 #include "panel.h"
+#include "initializer.h"
 
 #include "applets/appmenu/appmenu.h"
 #include "applets/datetime/datetime.h"
@@ -13,23 +14,11 @@
 #include "applets/battery/battery.h"
 #include "applets/snitray/snitray.h"
 #include "applets/clioutput/clioutput.h"
-
-AppMenuApplet* mAppMenuApplet;
-DateTimeApplet* mDateTimeApplet;
-KbLayoutApplet* mKbLayoutApplet;
-UserMenuApplet* mUserMenuApplet;
-VolumeApplet* mVolumeApplet;
-WorkspacesApplet* mWorkspacesApplet;
-LocalIPv4Applet* mIPv4Applet;
-BatteryApplet* mBatteryApplet;
-MPRISApplet* mMPRISApplet;
-SNITrayApplet* mSNITrayApplet;
-WindowListApplet* mWinListApplet;
-QList<CLIOutputApplet*> mCLIOutputAppletsList = {};
+#include "applets/splitter/splitter.h"
+#include "applets/spacer/spacer.h"
 
 QDBusMessage msg;
 QDBusConnection panelSessionBus = QDBusConnection::sessionBus();
-
 
 void Panel::setPanelFlags() {
     this->setAttribute(Qt::WA_X11NetWmWindowTypeDock);
@@ -159,29 +148,31 @@ void Panel::setPanelGeometry() {
     this->move(ax, ay);
     this->setFixedSize(mPanelWidth, mPanelHeight);
 
-    KWindowSystem::setExtendedStrut(mPanelWId,
-                                    leftStrut,
-                                    mScreenGeometry.y(),
-                                    mScreenGeometry.y() + mScreenGeometry.height(),
-                                    rightStrut,
-                                    mScreenGeometry.y(),
-                                    mScreenGeometry.y() + mScreenGeometry.height(),
-                                    topStrut,
-                                    mScreenGeometry.x(),
-                                    mScreenGeometry.x() + mScreenGeometry.width(),
-                                    bottomStrut,
-                                    mScreenGeometry.x(),
-                                    mScreenGeometry.x() + mScreenGeometry.width());
+    if (!mCfgMan->mPanels.at(mPanelID - 1).enableAutoHide) {
+        KWindowSystem::setExtendedStrut(mPanelWId,
+                                        leftStrut,
+                                        mScreenGeometry.y(),
+                                        mScreenGeometry.y() + mScreenGeometry.height(),
+                                        rightStrut,
+                                        mScreenGeometry.y(),
+                                        mScreenGeometry.y() + mScreenGeometry.height(),
+                                        topStrut,
+                                        mScreenGeometry.x(),
+                                        mScreenGeometry.x() + mScreenGeometry.width(),
+                                        bottomStrut,
+                                        mScreenGeometry.x(),
+                                        mScreenGeometry.x() + mScreenGeometry.width());
 
-    qDebug() << "Strut:" << leftStrut << rightStrut << topStrut << bottomStrut;
-    qDebug() << "left strut restrictions:" << mScreenGeometry.y() << '-' << mScreenGeometry.y() + mScreenGeometry.height();
-    qDebug() << "right strut restrictions:" << mScreenGeometry.y() << '-' << mScreenGeometry.y() + mScreenGeometry.height();
-    qDebug() << "top strut restrictions:" << mScreenGeometry.x() << '-' << mScreenGeometry.x() + mScreenGeometry.width();
-    qDebug() << "bottom strut restrictions:" << mScreenGeometry.x() << '-' << mScreenGeometry.x() + mScreenGeometry.width();
+        qDebug() << "Strut:" << leftStrut << rightStrut << topStrut << bottomStrut;
+        qDebug() << "left strut restrictions:" << mScreenGeometry.y() << '-' << mScreenGeometry.y() + mScreenGeometry.height();
+        qDebug() << "right strut restrictions:" << mScreenGeometry.y() << '-' << mScreenGeometry.y() + mScreenGeometry.height();
+        qDebug() << "top strut restrictions:" << mScreenGeometry.x() << '-' << mScreenGeometry.x() + mScreenGeometry.width();
+        qDebug() << "bottom strut restrictions:" << mScreenGeometry.x() << '-' << mScreenGeometry.x() + mScreenGeometry.width();
 
-    qDebug() << this->geometry().x() << this->geometry().y();
-    qDebug() << ax << ay;
-    qDebug() << mPanelWidth << mPanelHeight;
+        qDebug() << this->geometry().x() << this->geometry().y();
+        qDebug() << ax << ay;
+        qDebug() << mPanelWidth << mPanelHeight;
+    }
 
     KWindowSystem::setOnAllDesktops(mPanelWId, true);
     connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, [this]() {
@@ -190,55 +181,31 @@ void Panel::setPanelGeometry() {
     mCountWorkspaces = KWindowSystem::numberOfDesktops();
 }
 
+void Panel::setOnCenter() {
+    if (mPanelLayout == Horizontal) {
+        int panelWidth = this->width();
+        int screenWidth = mScreenGeometry.width();
+        int relativeX = (screenWidth - panelWidth) / 2;
+        int absoluteX = mScreenGeometry.x() + relativeX;
+        this->move(absoluteX, this->y());
+    }
+    else {
+        int panelHeight = this->height();
+        int screenHeight = mScreenGeometry.height();
+        int relativeY = (screenHeight - panelHeight) / 2;
+        int absoluteY = mScreenGeometry.y() + relativeY;
+        this->move(this->x(), absoluteY);
+    }
+}
+
 void Panel::setRepeatingActions() {
     // here we bring to life QTimers for updating applets data
 
-    const QJsonArray* applets = &mCfgMan->mPanels.at(mPanelID - 1).applets;
-    // Date & Time applet
-    if (applets->contains("datetime")) {
-        mDateTimeApplet->activate(mCfgMan, this);
-        if (mCfgMan->mShowDate) {
-            mDateTimeApplet->repeatingAction(mCfgMan, this, true);
+    foreach (QObject* applet, mAppletList) {
+        Applet* appletObj = static_cast<Applet*>(applet);
+        if (appletObj->mAppletType == Dynamic) {
+            static_cast<DynamicApplet*>(appletObj)->activate();
         }
-        else {
-            mDateTimeApplet->repeatingAction(mCfgMan, this);
-        }
-    }
-
-    // Keyboard layout applet
-    if (applets->contains("kblayout")) {
-        mKbLayoutApplet->activate(mCfgMan, this);
-        if (mCfgMan->mUseCountryFlag) {
-            mKbLayoutApplet->repeatingAction(mCfgMan, this, true);
-        }
-        else {
-            mKbLayoutApplet->repeatingAction(mCfgMan, this);
-        }
-    }
-
-    // Local IPv4 applet
-    if (applets->contains("localipv4")) {
-        mIPv4Applet->activate(mCfgMan, this);
-        mIPv4Applet->repeatingAction(mCfgMan, this);
-    }
-
-    // Battery applet
-    if (applets->contains("battery") && mBatteryApplet->mDeviceHasBattery) {
-        mBatteryApplet->activate(mCfgMan, this);
-        mBatteryApplet->repeatingAction(mCfgMan, this);
-    }
-
-    // Window List applet
-    if (applets->contains("windowlist")) {
-        mWinListApplet->activate(mCfgMan, this);
-        mWinListApplet->addButtons(mCfgMan, this);
-        mWinListApplet->accentActiveWindow(mCfgMan);
-    }
-
-    // CLI Output applets
-    foreach (CLIOutputApplet* applet, mCLIOutputAppletsList) {
-        applet->activate(mCfgMan, this);
-        applet->repeatingAction(mCfgMan, this);
     }
 }
 
@@ -314,117 +281,103 @@ void Panel::setPanelUI() {
 }
 
 void Panel::addApplets() {
-    // Applets: show applets
-    /* We could use QVariantList::contains, but this approach will not save
-     * order of placing applets. Using loop. */
-
+    // Initializing applets
     foreach (QVariant applet, mCfgMan->mPanels.at(mPanelID - 1).applets) {
-        if (applet == "appmenu") {
-            mAppMenuApplet = new AppMenuApplet(mCfgMan, this, "");
-            mAppMenuApplet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(mAppMenuApplet->mExternalWidget);
+        QString appletName = applet.toString();
+        qDebug() << appletName;
+
+        if (!appletName.compare("appmenu")) {  // org.plainDE.appMenu
+            Applet* applet = new AppMenuApplet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "spacer") {
-            if (mPanelLayout == Horizontal) {
-                mBoxLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Ignored));
+        else if (!appletName.compare("sni")) {  // org.plainDE.sniTray
+            Applet* applet = new SNITrayApplet(mCfgMan, this);
+            mAppletList.append(applet);
+        }
+
+        else if (!appletName.compare("battery")) {  // org.plainDE.battery
+            if (BatteryApplet::deviceHasBattery()) {
+                Applet* applet = new BatteryApplet(mCfgMan, this);
+                mAppletList.append(applet);
             }
             else {
-                mBoxLayout->addItem(new QSpacerItem(0, 0, QSizePolicy::Ignored, QSizePolicy::Expanding));
+                qDebug() << "This device does not have a battery. "
+                            "Deactivating Battery applet...";
             }
         }
 
-        else if (applet == "splitter") {
-            QLabel* splitter = new QLabel((mPanelLayout == Horizontal) ? "|" : "—");
-            splitter->setAlignment(Qt::AlignCenter);
-            mBoxLayout->addWidget(splitter);
-            mSplitters.append(splitter);
+        else if (!appletName.compare("mpris")) {  // org.plainDE.mpris
+            Applet* applet = new MPRISApplet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "datetime") {
-            mDateTimeApplet = new DateTimeApplet(mCfgMan, this, "");
-            mDateTimeApplet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(mDateTimeApplet->mExternalWidget);
+        else if (!appletName.compare("volume")) {  // org.plainDE.volume
+            Applet* applet = new VolumeApplet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "kblayout") {
-            mKbLayoutApplet = new KbLayoutApplet(mCfgMan, this, "");
-            mKbLayoutApplet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(mKbLayoutApplet->mExternalWidget);
+        else if (!appletName.compare("kblayout")) {  // org.plainDE.kbLayout
+            Applet* applet = new KbLayoutApplet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "usermenu") {
-            mUserMenuApplet = new UserMenuApplet(mCfgMan, this, "");
-            mUserMenuApplet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(mUserMenuApplet->mExternalWidget);
+        else if (!appletName.compare("datetime")) {  // org.plainDE.dateTime
+            Applet* applet = new DateTimeApplet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "volume") {
-            mVolumeApplet = new VolumeApplet(mCfgMan, this, "");
-            mVolumeApplet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(mVolumeApplet->mExternalWidget);
+        else if (!appletName.compare("usermenu")) {  // org.plainDE.userMenu
+            Applet* applet = new UserMenuApplet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "windowlist") {
-            mWinListApplet = new WindowListApplet(mCfgMan, this, "");
-            mWinListApplet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addLayout(mWinListApplet->mExternalLayout);
+        else if (!appletName.compare("windowlist")) {  // org.plainDE.windowList
+            Applet* applet = new WindowListApplet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "workspaces") {
-            mWorkspacesApplet = new WorkspacesApplet(mCfgMan, this, "");
-            mWorkspacesApplet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(mWorkspacesApplet->mExternalWidget);
+        else if (!appletName.compare("localipv4")) {  // org.plainDE.localIPv4
+            Applet* applet = new LocalIPv4Applet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "localipv4") {
-            mIPv4Applet = new LocalIPv4Applet(mCfgMan, this, "");
-            mIPv4Applet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(mIPv4Applet->mExternalWidget);
+        else if (!appletName.compare("workspaces")) {  // org.plainDE.workspaces
+            Applet* applet = new WorkspacesApplet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "mpris") {
-            mMPRISApplet = new MPRISApplet(mCfgMan, this, "");
-            mMPRISApplet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(mMPRISApplet->mExternalWidget);
+        else if (appletName.startsWith("launcher:")) {  // org.plainDE.launcher
+            Applet* applet = new LauncherApplet(mCfgMan, this, appletName);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "battery") {
-            mBatteryApplet = new BatteryApplet(mCfgMan, this, "");
-            if (mBatteryApplet->mDeviceHasBattery) {
-                mBatteryApplet->externalWidgetSetup(mCfgMan, this);
-                mBoxLayout->addWidget(mBatteryApplet->mExternalWidget);
-            }
-            else {
-                qDebug() << "This device does not have a battery. Deactivating Battery applet...";
-            }
+        else if (appletName.startsWith("clioutput:")) {  // org.plainDE.cliOutput
+            QString name = appletName.split(':')[1];
+            Applet* applet = new CLIOutputApplet(mCfgMan, this, name);
+            mAppletList.append(applet);
         }
 
-        else if (applet.toString().startsWith("launcher:")) {
-            LauncherApplet* launcher = new LauncherApplet(mCfgMan, this, applet.toString());
-            launcher->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(launcher->mExternalWidget);
+        else if (!appletName.compare("splitter")) {  // org.plainDE.splitter
+            Applet* applet = new SplitterApplet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
-        else if (applet == "sni") {
-            mSNITrayApplet = new SNITrayApplet(mCfgMan, this, "");
-            mSNITrayApplet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(mSNITrayApplet->mExternalWidget);
-        }
-
-        else if (applet.toString().startsWith("clioutput:")) {
-            QString appletName = applet.toString().split(':')[1];
-            CLIOutputApplet* cliOutputApplet = new CLIOutputApplet(mCfgMan,
-                                                                   this,
-                                                                   appletName);
-            cliOutputApplet->externalWidgetSetup(mCfgMan, this);
-            mBoxLayout->addWidget(cliOutputApplet->mExternalWidget);
-            mCLIOutputAppletsList.append(cliOutputApplet);
+        else if (!appletName.compare("spacer")) {
+            Applet* applet = new SpacerApplet(mCfgMan, this);
+            mAppletList.append(applet);
         }
 
         else {
             qDebug() << "Unknown applet:" << applet;
         }
+    }
+
+    // Adding applets to panel
+    foreach (QObject* applet, mAppletList) {
+        Applet* appletObj = static_cast<Applet*>(applet);
+        appletObj->externalWidgetSetup();
+        mBoxLayout->addWidget(appletObj->mExternalWidget);
     }
 }
 
@@ -441,93 +394,126 @@ void Panel::setTransparency() {
 }
 
 void Panel::setAppletsActions() {
-    // Applets: set actions
-    foreach (QVariant applet, mCfgMan->mPanels.at(mPanelID - 1).applets) {
-        if (applet == "appmenu") {
-            mAppMenuApplet->internalWidgetSetup(mCfgMan, this);
-        }
-
-        else if (applet == "datetime") {
-            mDateTimeApplet->internalWidgetSetup(mCfgMan, this);
-        }
-
-        else if (applet == "usermenu") {
-            mUserMenuApplet->internalWidgetSetup(mCfgMan, this);
-        }
-
-        else if (applet == "mpris") {
-            mMPRISApplet->internalWidgetSetup(mCfgMan, this);
-        }
+    foreach (QObject* applet, mAppletList) {
+        static_cast<Applet*>(applet)->internalWidgetSetup();
     }
 }
 
 void Panel::animation(AnimationType type) {
+    unsigned short ax = 0, ay = 0;
+    if (mPanelLayout == Horizontal) {
+        ax = this->geometry().x();
+    }
+    else if (mPanelLayout == Vertical) {
+        ay = this->geometry().y();
+    }
+
+    QPoint startValue, endValue;
+
+    switch (mPanelLocation) {
+    case Top:
+        if (type == Show) {
+            startValue = QPoint(ax, -mPanelThickness);
+            endValue = QPoint(ax, 0);
+        }
+        else if (type == Hide) {
+            startValue = QPoint(ax, 0);
+            endValue = QPoint(ax, -mPanelThickness);
+        }
+        else {
+            startValue = QPoint(ax, 0);
+            endValue = QPoint(ax, -mPanelThickness + 2);
+            mAutoHidden = true;
+        }
+        break;
+    case Bottom:
+        if (type == Show) {
+            startValue = QPoint(ax, mScreenHeight);
+            endValue = QPoint(ax, mScreenHeight - mPanelThickness);
+        }
+        else if (type == Hide) {
+            startValue = QPoint(ax, mScreenHeight - mPanelThickness);
+            endValue = QPoint(ax, mScreenHeight);
+        }
+        else {
+            startValue = QPoint(ax, mScreenHeight - mPanelThickness);
+            endValue = QPoint(ax, mScreenHeight - 2);
+            mAutoHidden = true;
+        }
+        break;
+    case Left:
+        if (type == Show) {
+            startValue = QPoint(-mPanelThickness, ay);
+            endValue = QPoint(0, ay);
+        }
+        else if (type == Hide) {
+            startValue = QPoint(0, ay);
+            endValue = QPoint(-mPanelThickness, ay);
+        }
+        else {
+            startValue = QPoint(0, ay);
+            endValue = QPoint(-mPanelThickness + 2, ay);
+            mAutoHidden = true;
+        }
+        break;
+    case Right:
+        if (type == Show) {
+            startValue = QPoint(mScreenWidth, ay);
+            endValue = QPoint(mScreenWidth - mPanelThickness, ay);
+        }
+        else if (type == Hide) {
+            startValue = QPoint(mScreenWidth - mPanelThickness, ay);
+            endValue = QPoint(mScreenWidth, ay);
+        }
+        else {
+            startValue = QPoint(mScreenWidth - mPanelThickness, ay);
+            endValue = QPoint(mScreenWidth - 2, ay);
+            mAutoHidden = true;
+        }
+        break;
+    }
+
+
     if (mCfgMan->mEnableAnimation) {
         QPropertyAnimation* panelAnimation = new QPropertyAnimation(this, "pos");
         panelAnimation->setDuration(250);
-
-        unsigned short ax = 0, ay = 0;
-        if (mPanelLayout == Horizontal) {
-            ax = this->geometry().x();
-        }
-        else if (mPanelLayout == Vertical) {
-            ay = this->geometry().y();
-        }
-
-        QPoint startValue, endValue;
-
-        switch (mPanelLocation) {
-        case Top:
-            if (type == Show) {
-                startValue = QPoint(ax, -mPanelThickness);
-                endValue = QPoint(ax, 0);
-            }
-            else {
-                startValue = QPoint(ax, 0);
-                endValue = QPoint(ax, -mPanelThickness);
-            }
-            break;
-        case Bottom:
-            if (type == Show) {
-                startValue = QPoint(ax, mScreenHeight);
-                endValue = QPoint(ax, mScreenHeight - mPanelThickness);
-            }
-            else {
-                startValue = QPoint(ax, mScreenHeight - mPanelThickness);
-                endValue = QPoint(ax, mScreenHeight);
-            }
-            break;
-        case Left:
-            if (type == Show) {
-                startValue = QPoint(-mPanelThickness, ay);
-                endValue = QPoint(0, ay);
-            }
-            else {
-                startValue = QPoint(0, ay);
-                endValue = QPoint(-mPanelThickness, ay);
-            }
-            break;
-        case Right:
-            if (type == Show) {
-                startValue = QPoint(mScreenWidth, ay);
-                endValue = QPoint(mScreenWidth - mPanelThickness, ay);
-            }
-            else {
-                startValue = QPoint(mScreenWidth - mPanelThickness, ay);
-                endValue = QPoint(mScreenWidth, ay);
-            }
-            break;
-        }
-
         panelAnimation->setStartValue(startValue);
         panelAnimation->setEndValue(endValue);
         panelAnimation->start();
 
-        if (type == Hide) {
-            this->connect(panelAnimation, &QPropertyAnimation::finished, this, [this]() {
-                QThread::msleep(250);
-                emit animationFinished();
+        this->connect(panelAnimation, &QPropertyAnimation::finished, this, [this]() {
+            QThread::msleep(250);
+            emit animationFinished();
+        });
+    }
+    else {
+        this->move(endValue.x(), endValue.y());
+        emit animationFinished();
+    }
+}
+
+void Panel::autoHideSetup() {
+    if (mCfgMan->mPanels.at(mPanelID - 1).enableAutoHide) {
+        setAttribute(Qt::WA_Hover, true);
+        mAutoHideTimer = new QTimer();
+        mAutoHideTimer->setInterval(
+            mCfgMan->mPanels.at(mPanelID - 1).autoHideInterval);
+        mAutoHideTimer->setSingleShot(true);
+        connect(mAutoHideTimer, &QTimer::timeout, this, [this]() {
+            animation(AutoHide);
+        });
+
+        if (mCfgMan->mEnableAnimation) {
+            connect(this, &Panel::animationFinished, this, [this]() {
+                if (!mEnableAutoHide) {
+                    mAutoHideTimer->start();
+                    mEnableAutoHide = true;
+                }
             });
+        }
+        else {
+            mAutoHideTimer->start();
+            mEnableAutoHide = true;
         }
     }
 }
@@ -593,23 +579,25 @@ Panel::Panel(QObject* parent,
     setPanelGeometry();
     setPanelUI();
     mPanelPID = app->applicationPid();
-    qDebug() << "DEBUG";
     addApplets();
     setTransparency();
     mPanelWId = this->winId();
-    qDebug() << "Panel PID" << mPanelPID;
     this->show();
     setPanelGeometry();
     setAppletsActions();
     setRepeatingActions();
+    if (mCfgMan->mPanels.at(mPanelID - 1).setOnCenter) {
+        setOnCenter();
+    }
     animation(Show);
+    autoHideSetup();
 
-    this->connect(static_cast<UserMenuApplet*>(mUserMenuApplet),
-                  &UserMenuApplet::panelShouldQuit, this, [this]() {
+    this->connect(static_cast<Initializer*>(mExecHolder),
+                  &Initializer::panelShouldQuit, this, [this]() {
         foreach (QProcess* process, mProcesses) {
-            if (process != NULL) {
-                delete process;
-            }
+          if (process != NULL) {
+              delete process;
+          }
         }
         mProcesses.clear();
 
@@ -619,49 +607,40 @@ Panel::Panel(QObject* parent,
     testpoint(mExecHolder);
 }
 
+void Panel::enterEvent(QEvent *event) {
+    if (mEnableAutoHide) {
+        mAutoHideTimer->stop();
+        if (mAutoHidden) {
+            animation(Show);
+            mAutoHidden = false;
+        }
+    }
+    event->accept();
+}
+
+void Panel::leaveEvent(QEvent *event) {
+    if (mEnableAutoHide) {
+        QRect geometry = this->geometry();
+        if (mScreenGeometry.contains(geometry) &&
+            !geometry.contains(mapFromGlobal(QCursor::pos()))) {
+            mAutoHideTimer->start();
+        }
+    }
+    event->accept();
+}
+
+void Panel::resizeEvent(QResizeEvent* event) {
+    if (mCfgMan->mPanels.at(mPanelID - 1).setOnCenter) {
+        setOnCenter();
+    }
+    event->accept();
+}
 
 Panel::~Panel() {
-    const QJsonArray* applets = &mCfgMan->mPanels.at(mPanelID - 1).applets;
-    if (applets->contains("appmenu")) {
-        delete mAppMenuApplet;
+    foreach (QObject* applet, mAppletList) {
+        delete applet;
     }
-    if (applets->contains("datetime")) {
-        delete mDateTimeApplet;
-    }
-    if (applets->contains("kblayout")) {
-        delete mKbLayoutApplet;
-    }
-    if (applets->contains("usermenu")) {
-        delete mUserMenuApplet;
-    }
-    if (applets->contains("volume")) {
-        delete mVolumeApplet;
-    }
-    if (applets->contains("workspaces")) {
-        delete mWorkspacesApplet;
-    }
-    if (applets->contains("localipv4")) {
-        delete mIPv4Applet;
-    }
-    if (applets->contains("battery")) {
-        delete mBatteryApplet;
-    }
-    if (applets->contains("mpris")) {
-        delete mMPRISApplet;
-    }
-    if (applets->contains("sni")) {
-        delete mSNITrayApplet;
-    }
-    if (applets->contains("windowlist")) {
-        delete mWinListApplet;
-    }
-
-    foreach (CLIOutputApplet* object, mCLIOutputAppletsList) {
-        delete object;
-    }
-    mCLIOutputAppletsList.clear();
 
     this->hide();
-
     qDebug() << "Panel" << mPanelID << "destructed.";
 }

@@ -68,6 +68,15 @@ void Initializer::highlightPanel(int n) {
     }
 }
 
+void Initializer::playStartupSound() {
+    QString path = mCfgMan->mStartupSound;
+    if (!path.isEmpty() && QFile::exists(path)) {
+        qDebug() << "Startup sound" << path;
+        mPlayer->setMedia(QUrl::fromLocalFile(path));
+        mPlayer->play();
+    }
+}
+
 Initializer::Initializer(QApplication* app) {
     qDebug() << QString("plainPanel %1.%2.%3").arg(MAJOR_VER,
                                                    MINOR_VER,
@@ -77,6 +86,8 @@ Initializer::Initializer(QApplication* app) {
     mCfgMan->readConfig();
     mCfgMan->setFields();
     mApp = app;
+
+    mPlayer = new QMediaPlayer();
 
     panels.clear();
 
@@ -90,6 +101,8 @@ Initializer::Initializer(QApplication* app) {
     autostart();
 
     DBusIntegration db("org.plainDE.plainPanel", "/Actions", "org.plainDE.actions", this);
+
+    playStartupSound();
 }
 
 Initializer::~Initializer() {

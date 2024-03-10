@@ -35,6 +35,9 @@ struct PanelCfg {
     qint8 launcherIconSize;
     PanelLocation location;
     bool expand;
+    bool setOnCenter;
+    bool enableAutoHide;
+    int autoHideInterval;
 };
 
 class ConfigManager {
@@ -94,6 +97,10 @@ public:
     // IPv4 applet settings
     QString mNetworkInterface;
     QString mIPAddrColor;
+
+    // Sounds
+    QString mStartupSound;
+    QString mLogoutSound;
 
     // Panels
     QList<PanelCfg> mPanels;

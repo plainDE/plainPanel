@@ -2,19 +2,21 @@
 
 QDBusConnection mSNITrayBus = QDBusConnection::sessionBus();
 
-void SNITrayApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel) {
+void SNITrayApplet::externalWidgetSetup() {
     mExternalWidget = new QFrame();
-    mExternalWidget->setFrameStyle(QFrame::NoFrame | QFrame::Plain);
+    static_cast<QFrame*>(mExternalWidget)->setFrameStyle(
+        QFrame::NoFrame | QFrame::Plain
+    );
 
     QBoxLayout* layout;
-    if (parentPanel->mPanelLayout == Horizontal) {
+    if (mParentPanel->mPanelLayout == Horizontal) {
         layout = new QHBoxLayout(mExternalWidget);
     }
     else {  // Vertical
         layout = new QVBoxLayout(mExternalWidget);
     }
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(parentPanel->mSpacing);
+    layout->setSpacing(mParentPanel->mSpacing);
 
     // Make connections
     connect(mStatusNotifierWatcher, &StatusNotifierWatcher::StatusNotifierItemRegistered,
@@ -56,13 +58,6 @@ void SNITrayApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPane
         delete mSNIWidgets[service];
         mSNIWidgets.remove(service);
     });
-}
-
-SNITrayApplet::SNITrayApplet(ConfigManager* cfgMan,
-                 Panel* parentPanel,
-                 QString additionalInfo) : Applet(cfgMan, parentPanel, additionalInfo) {
-    mStatusNotifierWatcher = new StatusNotifierWatcher();
-    mStatusNotifierWatcher->RegisterStatusNotifierHost("org.plainDE.plainPanel");
 }
 
 void SNITrayApplet::setSNIIcon(QString service, QPushButton* sniPushButton) {
@@ -188,6 +183,16 @@ void SNITrayApplet::activate(QString service) {
 
     message.setArguments(args);
     mSNITrayBus.call(message);
+}
+
+SNITrayApplet::SNITrayApplet(ConfigManager* cfgMan,
+                             Panel* parentPanel) : StaticApplet(
+                                                       "org.plainDE.sniTray",
+                                                       cfgMan,
+                                                       parentPanel
+                                                   ) {
+    mStatusNotifierWatcher = new StatusNotifierWatcher();
+    mStatusNotifierWatcher->RegisterStatusNotifierHost("org.plainDE.plainPanel");
 }
 
 SNITrayApplet::~SNITrayApplet() {

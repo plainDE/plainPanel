@@ -1,13 +1,11 @@
 #include "localipv4.h"
 
-
-void LocalIPv4Applet::externalWidgetSetup(ConfigManager* cfgMan,
-                                          Panel* parentPanel) {
+void LocalIPv4Applet::externalWidgetSetup() {
     QGraphicsScene* ipScene = new QGraphicsScene();
     mTextItem = ipScene->addText("0.0.0.0");
-    mTextItem->setFont(cfgMan->mFont);
+    mTextItem->setFont(mCfgMan->mFont);
 
-    QString color = cfgMan->mIPAddrColor;
+    QString color = mCfgMan->mIPAddrColor;
     QList<int> rgb;
     QString block;
     for (int i = 1; i < 6; i += 2) {
@@ -19,63 +17,56 @@ void LocalIPv4Applet::externalWidgetSetup(ConfigManager* cfgMan,
     mExternalWidget = new QGraphicsView(ipScene);
     mExternalWidget->setStyleSheet("background: transparent");
 
-    if (parentPanel->mPanelLayout == Vertical) {
-        if (parentPanel->mPanelLocation == Left) {
-            mExternalWidget->rotate(90);
+    if (mParentPanel->mPanelLayout == Vertical) {
+        if (mParentPanel->mPanelLocation == Left) {
+            static_cast<QGraphicsView*>(mExternalWidget)->rotate(90);
             mIPAngle = 90;
         }
         else {
-            mExternalWidget->rotate(270);
+            static_cast<QGraphicsView*>(mExternalWidget)->rotate(270);
             mIPAngle = 270;
         }
         mExternalWidget->setMaximumHeight(
-            parentPanel->mFontMetrics->horizontalAdvance("0.0.0.0"));
+            mParentPanel->mFontMetrics->horizontalAdvance("0.0.0.0"));
         mExternalWidget->setMinimumHeight(
-            parentPanel->mFontMetrics->horizontalAdvance("0.0.0.0"));
+            mParentPanel->mFontMetrics->horizontalAdvance("0.0.0.0"));
     }
     else {
         mExternalWidget->setMaximumWidth(
-            parentPanel->mFontMetrics->horizontalAdvance("0.0.0.0"));
+            mParentPanel->mFontMetrics->horizontalAdvance("0.0.0.0"));
         mExternalWidget->setMinimumWidth(
-            parentPanel->mFontMetrics->horizontalAdvance("0.0.0.0"));
+            mParentPanel->mFontMetrics->horizontalAdvance("0.0.0.0"));
     }
 
-    mExternalWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    mExternalWidget->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    static_cast<QGraphicsView*>(mExternalWidget)->
+        setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    static_cast<QGraphicsView*>(mExternalWidget)->
+        setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
-    mExternalWidget->setToolTip(cfgMan->mNetworkInterface);
+    mExternalWidget->setToolTip(mCfgMan->mNetworkInterface);
 }
 
-void LocalIPv4Applet::repeatingAction(ConfigManager* cfgMan,
-                                      Panel* parentPanel) {
-    QString newIP = getLocalIP(cfgMan->mNetworkInterface);
+void LocalIPv4Applet::repeatingAction() {
+    QString newIP = getLocalIP(mCfgMan->mNetworkInterface);
     if (newIP != mLastIP) {
         mLastIP = newIP;
         mTextItem->setPlainText(newIP);
-        if (parentPanel->mPanelLayout == Horizontal) {
-            short maxWidth = parentPanel->mFontMetrics->horizontalAdvance(newIP) + parentPanel->mFontMetrics->averageCharWidth();
+        if (mParentPanel->mPanelLayout == Horizontal) {
+            short maxWidth = mParentPanel->mFontMetrics->horizontalAdvance(newIP) +
+                             mParentPanel->mFontMetrics->averageCharWidth();
             mExternalWidget->setMaximumWidth(maxWidth);
             mExternalWidget->setMinimumWidth(maxWidth);
         }
         else {
-            short maxHeight = parentPanel->mFontMetrics->horizontalAdvance(newIP) + parentPanel->mFontMetrics->averageCharWidth();
+            short maxHeight = mParentPanel->mFontMetrics->horizontalAdvance(newIP) +
+                              mParentPanel->mFontMetrics->averageCharWidth();
             if (mIPAngle == 270) {
-                maxHeight += parentPanel->mFontMetrics->horizontalAdvance("A");
+                maxHeight += mParentPanel->mFontMetrics->horizontalAdvance("A");
             }
             mExternalWidget->setMaximumHeight(maxHeight);
             mExternalWidget->setMinimumHeight(maxHeight);
         }
     }
-}
-
-void LocalIPv4Applet::activate(ConfigManager* cfgMan, Panel* parentPanel) {
-    mInterval = 15000;
-    mTimer = new QTimer(this);
-    mTimer->setInterval(mInterval);
-    connect(mTimer, &QTimer::timeout, this, [this, cfgMan, parentPanel]() {
-        repeatingAction(cfgMan, parentPanel);
-    });
-    mTimer->start();
 }
 
 QString LocalIPv4Applet::getLocalIP(QString ifname) {
@@ -91,10 +82,12 @@ QString LocalIPv4Applet::getLocalIP(QString ifname) {
 }
 
 LocalIPv4Applet::LocalIPv4Applet(ConfigManager* cfgMan,
-                                 Panel* parentPanel,
-                                 QString additionalInfo) : Applet(cfgMan,
-                                                                  parentPanel,
-                                                                  additionalInfo) {
+                                 Panel* parentPanel) : DynamicApplet(
+                                                           "org.plainDE.localIPv4",
+                                                            cfgMan,
+                                                            parentPanel,
+                                                            15000
+                                                       ) {
 
 }
 

@@ -1,17 +1,19 @@
 #include "workspaces.h"
 
-void WorkspacesApplet::addButtons(ConfigManager* cfgMan, Panel* parentPanel) {
+void WorkspacesApplet::addButtons() {
     mCountWorkspaces = KWindowSystem::numberOfDesktops();
     for (int i = 1; i <= mCountWorkspaces; ++i) {
-        QString buttonText = getButtonText(cfgMan, i);
+        QString buttonText = getButtonText(i);
         QPushButton* workspaceButton = new QPushButton(buttonText);
-        if (!cfgMan->mShowDesktopNames) {
-            workspaceButton->setMaximumWidth(parentPanel->mFontMetrics->horizontalAdvance("100"));
+        if (!mCfgMan->mShowDesktopNames) {
+            workspaceButton->setMaximumWidth(
+                mParentPanel->mFontMetrics->horizontalAdvance("100")
+            );
         }
         else {
-            int textSize = parentPanel->mFontMetrics->horizontalAdvance(buttonText);
-            int space = parentPanel->mFontMetrics->horizontalAdvance("10");
-            int minSize = parentPanel->mFontMetrics->horizontalAdvance("100");
+            int textSize = mParentPanel->mFontMetrics->horizontalAdvance(buttonText);
+            int space = mParentPanel->mFontMetrics->horizontalAdvance("10");
+            int minSize = mParentPanel->mFontMetrics->horizontalAdvance("100");
             if (textSize < minSize) {
                 workspaceButton->setMaximumWidth(minSize);
             }
@@ -30,8 +32,8 @@ void WorkspacesApplet::addButtons(ConfigManager* cfgMan, Panel* parentPanel) {
     }
 }
 
-QString WorkspacesApplet::getButtonText(ConfigManager* cfgMan, int n) {
-    if (cfgMan->mShowDesktopNames) {
+QString WorkspacesApplet::getButtonText(int n) {
+    if (mCfgMan->mShowDesktopNames) {
         return KWindowSystem::desktopName(n);
     }
     else {
@@ -39,16 +41,15 @@ QString WorkspacesApplet::getButtonText(ConfigManager* cfgMan, int n) {
     }
 }
 
-void WorkspacesApplet::externalWidgetSetup(ConfigManager* cfgMan,
-                                           Panel* parentPanel) {
-    if (parentPanel->mPanelLayout == Horizontal) {
+void WorkspacesApplet::externalWidgetSetup() {
+    if (mParentPanel->mPanelLayout == Horizontal) {
         mExternalWidget = new QFrame();
         static_cast<QFrame*>(mExternalWidget)->setFrameStyle(QFrame::NoFrame | QFrame::Plain);
 
         QHBoxLayout* layout = new QHBoxLayout(mExternalWidget);
         layout->setContentsMargins(0, 0, 0, 0);
-        layout->setSpacing(parentPanel->mSpacing);
-        addButtons(cfgMan, parentPanel);
+        layout->setSpacing(mParentPanel->mSpacing);
+        addButtons();
     }
     else {  // Vertical
         mExternalWidget = new QPushButton();
@@ -58,36 +59,35 @@ void WorkspacesApplet::externalWidgetSetup(ConfigManager* cfgMan,
 
     // Make connections
     connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged,
-            this, [this, cfgMan, parentPanel]() {
-        accentCurrentDesktop(cfgMan, parentPanel);
+            this, [this]() {
+        accentCurrentDesktop();
     });
 
     connect(KWindowSystem::self(), &KWindowSystem::desktopNamesChanged,
-            this, [this, cfgMan, parentPanel] {
-        for (int i = 0; i <= mButtonList.count(); ++i) {
-            QString buttonText = getButtonText(cfgMan, i);
+            this, [this] {
+        for (int i = 0; i < mButtonList.count(); ++i) {
+            QString buttonText = getButtonText(i + 1);
             this->mButtonList.at(i)->setText(buttonText);
         }
     });
 
-    if (parentPanel->mPanelLayout == Horizontal) {
+    if (mParentPanel->mPanelLayout == Horizontal) {
         connect(KWindowSystem::self(), &KWindowSystem::numberOfDesktopsChanged,
-                this, [this, cfgMan, parentPanel]() {
+                this, [this]() {
             foreach (QPushButton* button, mButtonList) {
                 delete button;
             }
             mButtonList.clear();
-            addButtons(cfgMan, parentPanel);
+            addButtons();
         });
     }
 
-    accentCurrentDesktop(cfgMan, parentPanel);
+    accentCurrentDesktop();
 }
 
-void WorkspacesApplet::accentCurrentDesktop(ConfigManager* cfgMan,
-                                            Panel* parentPanel) {
+void WorkspacesApplet::accentCurrentDesktop() {
     int currentDesktop = KWindowSystem::currentDesktop();
-    if (parentPanel->mPanelLayout == Horizontal) {
+    if (mParentPanel->mPanelLayout == Horizontal) {
         for (int i = 0; i < mButtonList.count(); ++i) {
             if (i + 1 == currentDesktop) {
                 mButtonList.at(i)->setStyleSheet(mActiveStylesheet);
@@ -98,8 +98,7 @@ void WorkspacesApplet::accentCurrentDesktop(ConfigManager* cfgMan,
         }
     }
     else {  // Vertical
-        QString buttonText = getButtonText(cfgMan,
-                                           KWindowSystem::currentDesktop());
+        QString buttonText = getButtonText(KWindowSystem::currentDesktop());
         static_cast<QPushButton*>(mExternalWidget)->setText(buttonText);
     }
 }
@@ -109,10 +108,11 @@ void WorkspacesApplet::setWorkspace(int n) {
 }
 
 WorkspacesApplet::WorkspacesApplet(ConfigManager* cfgMan,
-                                   Panel* parentPanel,
-                                   QString additionalInfo) : Applet(cfgMan,
-                                                                    parentPanel,
-                                                                    additionalInfo) {
+                                   Panel* parentPanel) : StaticApplet(
+                                                             "org.plainDE.workspaces",
+                                                             cfgMan,
+                                                             parentPanel
+                                                         ) {
     mAccent = cfgMan->mAccent;
     mInactiveStylesheet = "background-color: #9a9996; color: #000000;";
     mActiveStylesheet = QString("background-color: %1; color: #ffffff;").arg(cfgMan->mAccent);

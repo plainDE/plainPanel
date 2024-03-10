@@ -25,7 +25,7 @@
   <img src="https://raw.githubusercontent.com/linuxmint/mint-y-icons/master/usr/share/icons/Mint-Y/categories/22/cs-network.png"> Local IPv4 Indicator
   
   <h2>Screenshots</h2>
-  <img src="scr-0.7.png" width="853">
+  <img src="scr-0.7.1.png" width="853">
   
   <h2>Installation</h2>
   For the installation guide, refer to <a href="https://plainde.github.io/docs.github.io/installation.html">docs</a>.
@@ -35,7 +35,7 @@
   
   <h2>How can I help you?</h2>
   <ul>
-    <li>Create a new applet</li>
+    <li>Develop a new applet</li>
     <li>Translate plainPanel into another language (soon)</li>
     <li>Report a bug</li>
     <li>Fix a bug or suggest solution for it</li>

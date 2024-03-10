@@ -11,6 +11,7 @@
 #include <QString>
 #include <QHash>
 #include <QTimer>
+#include <QMediaPlayer>
 
 
 #include "../../panel.h"
@@ -43,6 +44,8 @@ public:
     QHash<Type,QString> mStringByType;
     QHash<Type,QString> mActionByType;
     QTimer* mTimer;
+    QMediaPlayer* mPlayer;
+    bool mPlayLogoutSound = false;
 
 signals:
     void actionRequested();

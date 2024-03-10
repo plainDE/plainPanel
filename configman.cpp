@@ -71,6 +71,10 @@ void ConfigManager::setFields() {
     mNetworkInterface = mConfigObj["ipIfname"].toString();
     mIPAddrColor = mConfigObj["ipColor"].toString();
 
+    // Sounds
+    mStartupSound = mConfigObj["logInSound"].toString();
+    mLogoutSound = mConfigObj["logOutSound"].toString();
+
     // Panels
     for (int i = 1; i <= 4; ++i) {
         QString currentPanelName = QString("panel%1").arg(QString::number(i));
@@ -87,7 +91,10 @@ void ConfigManager::setFields() {
             currentPanel.thickness = currentPanelObj["thickness"].toInt();
             currentPanel.launcherIconSize = currentPanelObj["launcherIconSize"].toInt();
             currentPanel.expand = currentPanelObj["expand"].toBool();
+            currentPanel.setOnCenter = currentPanelObj["setOnCenter"].toBool();
             currentPanel.spacing = currentPanelObj["spacing"].toInt();
+            currentPanel.enableAutoHide = currentPanelObj["enableAutoHide"].toBool();
+            currentPanel.autoHideInterval = currentPanelObj["autoHideInterval"].toInt();
 
             PanelLocation loc;
             QString locData = currentPanelObj["location"].toString();

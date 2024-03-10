@@ -1,4 +1,4 @@
-QT       += core gui network KWindowSystem concurrent
+QT       += core gui network KWindowSystem concurrent multimedia
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets dbus
 
@@ -26,6 +26,8 @@ SOURCES += \
     applets/mpris/mpris.cpp \
     applets/snitray/snitray.cpp \
     applets/snitray/statusnotifierwatcher.cpp \
+    applets/spacer/spacer.cpp \
+    applets/splitter/splitter.cpp \
     applets/usermenu/powerdialog.cpp \
     applets/usermenu/usermenu.cpp \
     applets/volume/volume.cpp \
@@ -33,9 +35,11 @@ SOURCES += \
     applets/workspaces/workspaces.cpp \
     configman.cpp \
     dbusintegration.cpp \
+    dynamicapplet.cpp \
     initializer.cpp \
     main.cpp \
-    panel.cpp
+    panel.cpp \
+    staticapplet.cpp
 
 HEADERS += \
     applet.h \
@@ -49,6 +53,8 @@ HEADERS += \
     applets/mpris/mpris.h \
     applets/snitray/snitray.h \
     applets/snitray/statusnotifierwatcher.h \
+    applets/spacer/spacer.h \
+    applets/splitter/splitter.h \
     applets/usermenu/powerdialog.h \
     applets/usermenu/usermenu.h \
     applets/volume/volume.h \
@@ -56,8 +62,10 @@ HEADERS += \
     applets/workspaces/workspaces.h \
     configman.h \
     dbusintegration.h \
+    dynamicapplet.h \
     initializer.h \
-    panel.h
+    panel.h \
+    staticapplet.h
 
 #CONFIG += lrelease
 CONFIG += embed_translations

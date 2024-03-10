@@ -1,30 +1,31 @@
 #include "volume.h"
 
-void VolumeApplet::externalWidgetSetup(ConfigManager* cfgMan,
-                                       Panel* parentPanel) {
+void VolumeApplet::externalWidgetSetup() {
     mExternalWidget = new QFrame();
     mExternalWidget->setObjectName("volumeFrame");
-    mExternalWidget->setFrameStyle(QFrame::NoFrame | QFrame::Plain);
+    static_cast<QFrame*>(mExternalWidget)->setFrameStyle(
+        QFrame::NoFrame | QFrame::Plain
+    );
     QBoxLayout* layout;
 
-    if (parentPanel->mPanelLayout == Horizontal) {
+    if (mParentPanel->mPanelLayout == Horizontal) {
         layout = new QHBoxLayout(mExternalWidget);
     }
     else {  // Vertical
         layout = new QVBoxLayout(mExternalWidget);
     }
 
-    layout->setSpacing(parentPanel->mSpacing);
+    layout->setSpacing(mParentPanel->mSpacing);
     layout->setContentsMargins(0, 0, 0, 0);
 
     QDial* volumeDial = new QDial();
     volumeDial->setMinimum(0);
     volumeDial->setMaximum(100);
-    if (cfgMan->mEnableOveramplification) {
+    if (mCfgMan->mEnableOveramplification) {
         volumeDial->setMaximum(150);
     }
-    volumeDial->setValue(cfgMan->mDefaultVolume);
-    if (parentPanel->mPanelLayout == Horizontal) {
+    volumeDial->setValue(mCfgMan->mDefaultVolume);
+    if (mParentPanel->mPanelLayout == Horizontal) {
         volumeDial->setMaximumWidth(25);
     }
     else {  // Vertical
@@ -33,21 +34,21 @@ void VolumeApplet::externalWidgetSetup(ConfigManager* cfgMan,
     layout->addWidget(volumeDial);
 
     QLabel* volumeLabel = new QLabel();
-    volumeLabel->setFont(cfgMan->mFont);
-    if (parentPanel->mPanelLayout == Horizontal) {
-        volumeLabel->setMaximumWidth(parentPanel->mFontMetrics->horizontalAdvance("150%"));
+    volumeLabel->setFont(mCfgMan->mFont);
+    if (mParentPanel->mPanelLayout == Horizontal) {
+        volumeLabel->setMaximumWidth(mParentPanel->mFontMetrics->horizontalAdvance("150%"));
     }
-    QString text = QString("%1%").arg(QString::number(cfgMan->mDefaultVolume));
+    QString text = QString("%1%").arg(QString::number(mCfgMan->mDefaultVolume));
     volumeLabel->setText(text);
     volumeLabel->setAlignment(Qt::AlignCenter);
     layout->addWidget(volumeLabel);
 
-    setVolume(cfgMan->mDefaultVolume, cfgMan->mVolumeAdjMethod);
+    setVolume(mCfgMan->mDefaultVolume, mCfgMan->mVolumeAdjMethod);
 
     // Make connections
     this->connect(volumeDial, &QDial::valueChanged, this, [this, volumeDial,
-                                                           cfgMan, volumeLabel]() {
-        setVolume(volumeDial->value(), cfgMan->mVolumeAdjMethod);
+                                                           volumeLabel]() {
+        setVolume(volumeDial->value(), mCfgMan->mVolumeAdjMethod);
         volumeLabel->setText(QString::number(volumeDial->value()) + "%");
     });
 }
@@ -66,10 +67,11 @@ void VolumeApplet::setVolume(int newVolume, VolumeAdjustMethod method) {
 }
 
 VolumeApplet::VolumeApplet(ConfigManager* cfgMan,
-                           Panel* parentPanel,
-                           QString additionalInfo) : Applet(cfgMan,
-                                                            parentPanel,
-                                                            additionalInfo) {
+                           Panel* parentPanel) : StaticApplet(
+                                                    "org.plainDE.volume",
+                                                     cfgMan,
+                                                     parentPanel
+                                                 ) {
 
 }
 

@@ -2,38 +2,45 @@
 
 #include "powerdialog.h"
 
-void UserMenuApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel) {
+void UserMenuApplet::externalWidgetSetup() {
     mExternalWidget = new QPushButton();
-    mExternalWidget->setFont(cfgMan->mFont);
+    mExternalWidget->setFont(mCfgMan->mFont);
     mExternalWidget->setObjectName("userButton");
     mExternalWidget->setToolTip(tr("Power & Settings"));
-    mExternalWidget->setFlat(true);
+    static_cast<QPushButton*>(mExternalWidget)->setFlat(true);
 
-    if (parentPanel->mPanelLayout == Horizontal) {
+    if (mParentPanel->mPanelLayout == Horizontal) {
         QString text = QString(" %1").arg(getenv("USER"));
-        int userMenuWidth = parentPanel->mFontMetrics->horizontalAdvance(text) + 20;
-        mExternalWidget->setText(text);
+        int userMenuWidth = mParentPanel->mFontMetrics->horizontalAdvance(text) + 20;
+        static_cast<QPushButton*>(mExternalWidget)->setText(text);
         mExternalWidget->setMaximumWidth(userMenuWidth);
     }
 
-    QString avatar = cfgMan->mAvatar;
+    QString avatar = mCfgMan->mAvatar;
     if (!avatar.compare("")) {
-        mExternalWidget->setIcon(QIcon::fromTheme("computer"));
+        static_cast<QPushButton*>(mExternalWidget)->setIcon(
+            QIcon::fromTheme("computer")
+        );
     }
     else {
         if (QIcon::hasThemeIcon(avatar)) {
-            mExternalWidget->setIcon(QIcon::fromTheme(avatar));
+            static_cast<QPushButton*>(mExternalWidget)->setIcon(
+                QIcon::fromTheme(avatar)
+            );
         }
         else if (QFile::exists(avatar)) {
-            mExternalWidget->setIcon(QIcon(avatar));
+            static_cast<QPushButton*>(mExternalWidget)->setIcon(
+                QIcon(avatar)
+            );
         }
     }
 
     // Make connections
-    connect(mExternalWidget, &QPushButton::clicked, this, [this, cfgMan]() {
+    connect(static_cast<QPushButton*>(mExternalWidget),
+            &QPushButton::clicked, this, [this]() {
         if (!mInternalWidget->isVisible()) {
-            if (cfgMan->mTransparent) {
-                setBlurredBackground(mInternalWidget);
+            if (mCfgMan->mTransparent) {
+                setBlurredBackground();
             }
             mInternalWidget->show();
         }
@@ -43,19 +50,13 @@ void UserMenuApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPan
     });
 }
 
-void UserMenuApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel) {
+void UserMenuApplet::internalWidgetSetup() {
     mInternalWidget = new QWidget();
 
     // Geometry
-    int width = parentPanel->mFontMetrics->horizontalAdvance("About plainDE") + 25;
+    int width = mParentPanel->mFontMetrics->horizontalAdvance("About plainDE") + 25;
     int height = 150;
-    preliminaryInternalWidgetSetup(mInternalWidget,
-                                   mExternalWidget,
-                                   cfgMan,
-                                   parentPanel,
-                                   width,
-                                   height,
-                                   true);
+    preliminaryInternalWidgetSetup(width, height, true);
 
     mInternalWidget->setObjectName("userMenu");
 
@@ -66,7 +67,7 @@ void UserMenuApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPan
     settingsEntry->setFlat(true);
     settingsEntry->setText(tr("Settings"));
     settingsEntry->setIcon(QIcon::fromTheme("preferences-system"));
-    settingsEntry->setFont(cfgMan->mFont);
+    settingsEntry->setFont(mCfgMan->mFont);
     settingsEntry->setStyleSheet("text-align: left;");
     userMenuLayout->addWidget(settingsEntry);
 
@@ -74,7 +75,7 @@ void UserMenuApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPan
     aboutEntry->setFlat(true);
     aboutEntry->setText(tr("About plainDE"));
     aboutEntry->setIcon(QIcon("/usr/share/plainDE/menuIcon.png"));
-    aboutEntry->setFont(cfgMan->mFont);
+    aboutEntry->setFont(mCfgMan->mFont);
     aboutEntry->setStyleSheet("text-align: left;");
     userMenuLayout->addWidget(aboutEntry);
 
@@ -82,7 +83,7 @@ void UserMenuApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPan
     logOutEntry->setFlat(true);
     logOutEntry->setText(tr("Log Out"));
     logOutEntry->setIcon(QIcon::fromTheme("system-log-out"));
-    logOutEntry->setFont(cfgMan->mFont);
+    logOutEntry->setFont(mCfgMan->mFont);
     logOutEntry->setStyleSheet("text-align: left;");
     userMenuLayout->addWidget(logOutEntry);
 
@@ -90,7 +91,7 @@ void UserMenuApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPan
     suspendEntry->setFlat(true);
     suspendEntry->setText(tr("Suspend"));
     suspendEntry->setIcon(QIcon::fromTheme("system-suspend"));
-    suspendEntry->setFont(cfgMan->mFont);
+    suspendEntry->setFont(mCfgMan->mFont);
     suspendEntry->setStyleSheet("text-align: left;");
     userMenuLayout->addWidget(suspendEntry);
 
@@ -98,7 +99,7 @@ void UserMenuApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPan
     rebootEntry->setFlat(true);
     rebootEntry->setText("Reboot");
     rebootEntry->setIcon(QIcon::fromTheme("system-reboot"));
-    rebootEntry->setFont(cfgMan->mFont);
+    rebootEntry->setFont(mCfgMan->mFont);
     rebootEntry->setStyleSheet("text-align: left;");
     userMenuLayout->addWidget(rebootEntry);
 
@@ -106,25 +107,35 @@ void UserMenuApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPan
     powerOffEntry->setFlat(true);
     powerOffEntry->setText("Power Off");
     powerOffEntry->setIcon(QIcon::fromTheme("system-shutdown"));
-    powerOffEntry->setFont(cfgMan->mFont);
+    powerOffEntry->setFont(mCfgMan->mFont);
     powerOffEntry->setStyleSheet("text-align: left;");
     userMenuLayout->addWidget(powerOffEntry);
 
     // Make connections
     connect(powerOffEntry, &QPushButton::clicked, this,
-                            [this, parentPanel, cfgMan]() {
+                            [this]() {
         mInternalWidget->hide();
-        PowerDialog* pd = new PowerDialog(Type::PowerOff,
-                                          parentPanel,
-                                          cfgMan);
-        if (cfgMan->mSecondsUntilPowerOff > -1) {
+        PowerDialog* pd = new PowerDialog(Type::PowerOff, mParentPanel, mCfgMan);
+        if (mCfgMan->mSecondsUntilPowerOff > -1) {
             pd->startTimer();
         }
-        connect(pd, &PowerDialog::actionRequested, this, [this, parentPanel]() {
-            emit panelShouldQuit();
-            connect(parentPanel, &Panel::animationFinished, this, []() {
-                system("systemctl poweroff");
-            });
+        connect(pd, &PowerDialog::actionRequested, this, [this, pd]() {
+            emit static_cast<Initializer*>(
+                mParentPanel->mExecHolder)->panelShouldQuit();
+            if (pd->mPlayLogoutSound) {
+                pd->mPlayer->play();
+                connect(pd->mPlayer, &QMediaPlayer::stateChanged, this, [pd]() {
+                    if (pd->mPlayer->state() == QMediaPlayer::StoppedState) {
+                        system("systemctl poweroff");
+                    }
+                });
+            }
+            else {
+
+                connect(mParentPanel, &Panel::animationFinished, this, []() {
+                    system("systemctl poweroff");
+                });
+            }
         });
         connect(pd, &PowerDialog::cancelled, this, [pd]() {
             delete pd;
@@ -132,19 +143,28 @@ void UserMenuApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPan
     });
 
     connect(rebootEntry, &QPushButton::clicked, this,
-            [this, parentPanel, cfgMan]() {
+            [this]() {
         mInternalWidget->hide();
-        PowerDialog* pd = new PowerDialog(Type::Reboot,
-                                          parentPanel,
-                                          cfgMan);
-        if (cfgMan->mSecondsUntilPowerOff > -1) {
+        PowerDialog* pd = new PowerDialog(Type::Reboot, mParentPanel, mCfgMan);
+        if (mCfgMan->mSecondsUntilPowerOff > -1) {
             pd->startTimer();
         }
-        connect(pd, &PowerDialog::actionRequested, this, [this, parentPanel]() {
-            emit panelShouldQuit();
-            connect(parentPanel, &Panel::animationFinished, this, []() {
-                system("systemctl reboot");
-            });
+        connect(pd, &PowerDialog::actionRequested, this, [this, pd]() {
+            emit static_cast<Initializer*>(
+                mParentPanel->mExecHolder)->panelShouldQuit();
+            if (pd->mPlayLogoutSound) {
+                pd->mPlayer->play();
+                connect(pd->mPlayer, &QMediaPlayer::stateChanged, this, [pd]() {
+                    if (pd->mPlayer->state() == QMediaPlayer::StoppedState) {
+                        system("systemctl reboot");
+                    }
+                });
+            }
+            else {
+                connect(mParentPanel, &Panel::animationFinished, this, []() {
+                    system("systemctl reboot");
+                });
+            }
         });
         connect(pd, &PowerDialog::cancelled, this, [pd]() {
             delete pd;
@@ -152,19 +172,29 @@ void UserMenuApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPan
     });
 
     connect(logOutEntry, &QPushButton::clicked, this,
-            [this, parentPanel, cfgMan]() {
+            [this]() {
         mInternalWidget->hide();
-        PowerDialog* pd = new PowerDialog(Type::LogOut,
-                                          parentPanel,
-                                          cfgMan);
-        if (cfgMan->mSecondsUntilPowerOff > -1) {
+        PowerDialog* pd = new PowerDialog(Type::LogOut, mParentPanel, mCfgMan);
+        if (mCfgMan->mSecondsUntilPowerOff > -1) {
             pd->startTimer();
         }
-        connect(pd, &PowerDialog::actionRequested, this, [this, parentPanel]() {
-            emit panelShouldQuit();
-            connect(parentPanel, &Panel::animationFinished, this, []() {
-                system("loginctl kill-user $USER");
-            });
+        connect(pd, &PowerDialog::actionRequested, this, [this, pd]() {
+            emit static_cast<Initializer*>(
+                mParentPanel->mExecHolder)->panelShouldQuit();
+            if (pd->mPlayLogoutSound) {
+                qDebug() << "1";
+                pd->mPlayer->play();
+                connect(pd->mPlayer, &QMediaPlayer::stateChanged, this, [pd]() {
+                    if (pd->mPlayer->state() == QMediaPlayer::StoppedState) {
+                        system("loginctl kill-user $USER");
+                    }
+                });
+            }
+            else {
+                connect(mParentPanel, &Panel::animationFinished, this, []() {
+                    system("loginctl kill-user $USER");
+                });
+            }
         });
         connect(pd, &PowerDialog::cancelled, this, [pd]() {
             delete pd;
@@ -178,25 +208,26 @@ void UserMenuApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPan
     });
 
     this->connect(settingsEntry, &QPushButton::clicked, this,
-                            [this, parentPanel]() {
+                            [this]() {
         mInternalWidget->hide();
 
-        QProcess* process = new QProcess(parentPanel->mExecHolder);
-        process->start("/usr/bin/plainControlCenter");
+        QProcess* process = new QProcess(mParentPanel->mExecHolder);
+        process->start("/usr/bin/plainControlCenter", {""});
     });
 
     this->connect(aboutEntry, &QPushButton::clicked, this,
-                            [this, parentPanel]() {
+                            [this]() {
         mInternalWidget->hide();
 
-        QProcess* process = new QProcess(parentPanel->mExecHolder);
-        process->start("/usr/bin/plainAbout --plainPanel");
+        QProcess* process = new QProcess(mParentPanel->mExecHolder);
+        process->start("/usr/bin/plainAbout", {"--plainPanel"});
     });
 }
 
 UserMenuApplet::UserMenuApplet(ConfigManager* cfgMan,
-                               Panel* parentPanel,
-                               QString additionalInfo) : Applet(cfgMan, parentPanel, additionalInfo) {
+                               Panel* parentPanel) : StaticApplet("org.plainDE.userMenu",
+                                                                  cfgMan,
+                                                                  parentPanel) {
 
 }
 

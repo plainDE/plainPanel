@@ -13,27 +13,34 @@
 #include "configman.h"
 #include "panel.h"
 
+enum AppletType {
+    Static,
+    Dynamic
+};
+
 class Applet : public QObject {
     Q_OBJECT
 public:
-    Applet(ConfigManager* cfgMan,
-           Panel* parentPanel,
-           QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void repeatingAction(ConfigManager* cfgMan, Panel* parentPanel);
-    void activate(ConfigManager* cfgMan, Panel* parentPanel);
+    QString mAppletID;
+    AppletType mAppletType;
 
-    void setBlurredBackground(QWidget* internalWidget);
-    QPair<int,int> getButtonCoordinates(QWidget* externalWidget,
-                                        Panel* parentPanel);
-    void preliminaryInternalWidgetSetup(QWidget* internalWidget,
-                                        QWidget* externalWidget,
-                                        ConfigManager* cfgMan,
-                                        Panel* parentPanel,
-                                        int width,
+    Applet(QString appletID,
+           ConfigManager* cfgMan,
+           Panel* parentPanel);
+
+    virtual void externalWidgetSetup();
+    virtual void internalWidgetSetup();
+
+    void preliminaryInternalWidgetSetup(int width,
                                         int height,
                                         bool canBeTransparent);
+
+    void setBlurredBackground();
+
+    QPair<int,int> getButtonCoordinates();
+
+    ConfigManager* mCfgMan;
+    Panel* mParentPanel;
 
     QWidget* mExternalWidget;
     QWidget* mInternalWidget;

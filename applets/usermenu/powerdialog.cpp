@@ -125,6 +125,15 @@ PowerDialog::PowerDialog(Type type,
     dialog->setMinimumSize(420, 150);
     dialog->setMaximumSize(420, 150);
 
+    // Set logout sound
+    mPlayer = new QMediaPlayer();
+    QString path = cfgMan->mLogoutSound;
+    qDebug() << path;
+    if (!path.isEmpty() && QFile::exists(path)) {
+        mPlayer->setMedia(QUrl::fromLocalFile(path));
+        mPlayLogoutSound = true;
+    }
+
     // Transparency
     if (cfgMan->mTransparent) {
         setTransparency(dialog,

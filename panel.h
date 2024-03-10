@@ -1,7 +1,6 @@
 #ifndef PANEL_H
 #define PANEL_H
 
-
 #include "configman.h"
 
 #include <QWidget>
@@ -29,6 +28,7 @@
 #include <QtConcurrent>
 #include <KWindowSystem>
 #include <QBitmap>
+#include <QMouseEvent>
 
 
 QT_BEGIN_NAMESPACE
@@ -55,7 +55,8 @@ enum PanelLayout {
 
 enum AnimationType {
     Show = 1,
-    Hide = 2
+    Hide = 2,
+    AutoHide = 3
 };
 
 class Panel : public QWidget {
@@ -67,24 +68,28 @@ public:
           int id = 0,
           QApplication* app = nullptr,
           QList<Panel*> prevPanels = {});
+
     void animation(AnimationType type);
-    void updateWinList();           // Window List applet
-    void updateWinList(bool);       // Window List applet (without titles, for vertical panel)
     ~Panel();
 
     void setRepeatingActions();
     void setPanelFlags();
     void setPanelGeometry();
+    void setOnCenter();
     void setPanelUI();
     void addApplets();
     void setTransparency();
     void setAppletsActions();
+    void autoHideSetup();
     void testpoint(QObject* parent);
 
     void highlight();
 
-    int getWindowDataSize(QString title);
-    QString shortenWindowData(QPushButton* button, QString title);
+    void enterEvent(QEvent * event) override;
+    void leaveEvent(QEvent* event) override;
+    void resizeEvent(QResizeEvent* event) override;
+
+    QList<QObject*> mAppletList;
 
     QApplication *mApplication;
     ConfigManager* mCfgMan;
@@ -104,13 +109,8 @@ public:
     int mPanelWidth, mPanelHeight;
     PanelLocation mPanelLocation;
     int mAxisShift;
-    QRect mTargetGeometry;
 
     QBoxLayout* mBoxLayout;
-    QVariantList mActiveAppletsList;
-    QHash<QString,QWidget*> mAppletWidgets;
-    QList<QLabel*> mSplitters;
-    QList<QTimer*> mActiveTimers;
 
     QFont mPanelFont;
     QFontMetrics* mFontMetrics;
@@ -139,6 +139,10 @@ public:
     QBoxLayout* mSNILayout;
 
     bool mHasCLIOutputApplet = false;
+
+    bool mEnableAutoHide = false;
+    QTimer* mAutoHideTimer;
+    bool mAutoHidden = false;
 
 private:
     QFrame* mPanelFrame;

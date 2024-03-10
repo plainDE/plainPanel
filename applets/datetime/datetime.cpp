@@ -1,19 +1,18 @@
 #include "datetime.h"
 
-
-void DateTimeApplet::externalWidgetSetup(ConfigManager* cfgMan,
-                                         Panel* parentPanel) {
+void DateTimeApplet::externalWidgetSetup() {
     mExternalWidget = new QPushButton();
-    mExternalWidget->setFont(QFont(cfgMan->mFontFamily, cfgMan->mFontSize));
+    mExternalWidget->setFont(QFont(mCfgMan->mFontFamily, mCfgMan->mFontSize));
     mExternalWidget->setObjectName("dateTimeButton");
-    mExternalWidget->setFlat(true);
+    static_cast<QPushButton*>(mExternalWidget)->setFlat(true);
 
-    mTimeFormat = cfgMan->mTimeFormat;
-    mShowDate = cfgMan->mShowDate;
-    mDateFormat = cfgMan->mDateFormat;
+    mTimeFormat = mCfgMan->mTimeFormat;
+    mShowDate = mCfgMan->mShowDate;
+    mDateFormat = mCfgMan->mDateFormat;
 
     // Make connections
-    connect(mExternalWidget, &QPushButton::clicked, this, [this]() {
+    connect(static_cast<QPushButton*>(mExternalWidget),
+            &QPushButton::clicked, this, [this]() {
         if (!mInternalWidget->isVisible()) {
             mCalendarWidget->setSelectedDate(QDate::currentDate());
             mInternalWidget->show();
@@ -24,19 +23,12 @@ void DateTimeApplet::externalWidgetSetup(ConfigManager* cfgMan,
     });
 }
 
-void DateTimeApplet::internalWidgetSetup(ConfigManager* cfgMan,
-                                         Panel* parentPanel) {
+void DateTimeApplet::internalWidgetSetup() {
     mInternalWidget = new QWidget();
 
     // Geometry
     int width = 340, height = 250;
-    preliminaryInternalWidgetSetup(mInternalWidget,
-                                   mExternalWidget,
-                                   cfgMan,
-                                   parentPanel,
-                                   width,
-                                   height,
-                                   false);
+    preliminaryInternalWidgetSetup(width, height, false);
 
     // Main UI
     QVBoxLayout* mainLayout = new QVBoxLayout(mInternalWidget);
@@ -44,8 +36,8 @@ void DateTimeApplet::internalWidgetSetup(ConfigManager* cfgMan,
 
     mCalendarWidget = new QCalendarWidget();
     mCalendarWidget->setGridVisible(true);
-    mCalendarWidget->setFirstDayOfWeek(cfgMan->mFirstDayOfWeek);
-    if (cfgMan->mShowWeekNumbers) {
+    mCalendarWidget->setFirstDayOfWeek(mCfgMan->mFirstDayOfWeek);
+    if (mCfgMan->mShowWeekNumbers) {
         mCalendarWidget->setVerticalHeaderFormat(QCalendarWidget::ISOWeekNumbers);
     }
     else {
@@ -54,30 +46,28 @@ void DateTimeApplet::internalWidgetSetup(ConfigManager* cfgMan,
     mainLayout->addWidget(mCalendarWidget);
 }
 
-void DateTimeApplet::repeatingAction(ConfigManager* cfgMan, Panel* parentPanel) {
+void DateTimeApplet::repeatingAction() {
     QString data = getDisplayedData();
-    mExternalWidget->setText(data);
+    static_cast<QPushButton*>(mExternalWidget)->setText(data);
 }
 
-void DateTimeApplet::repeatingAction(ConfigManager* cfgMan, Panel* parentPanel, bool showDate) {
-    QString data = getDisplayedData(true);
-    mExternalWidget->setText(data);
+void DateTimeApplet::repeatingAction(bool) {
+    QString data = getDisplayedData(false);
+    static_cast<QPushButton*>(mExternalWidget)->setText(data);
 }
 
-void DateTimeApplet::activate(ConfigManager* cfgMan, Panel* parentPanel) {
-    mInterval = 1000;
+void DateTimeApplet::activate() {
     mTimer = new QTimer(this);
     mTimer->setInterval(mInterval);
     mTimer->setTimerType(Qt::PreciseTimer);
-
-    if (cfgMan->mShowDate) {
-        connect(mTimer, &QTimer::timeout, this, [this, cfgMan, parentPanel]() {
-            repeatingAction(cfgMan, parentPanel, true);
+    if (mShowDate) {
+        connect(mTimer, &QTimer::timeout, this, [this]() {
+            repeatingAction();
         });
     }
     else {
-        connect(mTimer, &QTimer::timeout, this, [this, cfgMan, parentPanel]() {
-            repeatingAction(cfgMan, parentPanel);
+        connect(mTimer, &QTimer::timeout, this, [this]() {
+            repeatingAction(false);
         });
     }
 
@@ -88,17 +78,16 @@ void DateTimeApplet::activate(ConfigManager* cfgMan, Panel* parentPanel) {
      * lets us get time more precisely and save resources. */
 
     unsigned short delay = 1000 - ((QTime::currentTime().msecsSinceStartOfDay()) % 1000);
-    if (cfgMan->mShowDate) {
-        QTimer::singleShot(delay, Qt::PreciseTimer, this, [this, cfgMan, parentPanel]() {
-            repeatingAction(cfgMan, parentPanel, true);
+    if (mShowDate) {
+        QTimer::singleShot(delay, Qt::PreciseTimer, this, [this]() {
+            repeatingAction();
         });
     }
     else {
-        QTimer::singleShot(delay, Qt::PreciseTimer, this, [this, cfgMan, parentPanel]() {
-            repeatingAction(cfgMan, parentPanel);
+        QTimer::singleShot(delay, Qt::PreciseTimer, this, [this]() {
+            repeatingAction(false);
         });
     }
-
     QTimer::singleShot(delay, Qt::PreciseTimer, mTimer, SLOT(start()));
 }
 
@@ -110,8 +99,8 @@ QString DateTimeApplet::getDate() {
     return QDate::currentDate().toString(mDateFormat);
 }
 
-QString DateTimeApplet::getDisplayedData(bool) {
-    if (mLayout == Horizontal) {
+QString DateTimeApplet::getDisplayedData() {
+    if (mParentPanel->mPanelLayout == Horizontal) {
         return getDate() + " " + getTime();
     }
     else {  // Vertical
@@ -119,14 +108,19 @@ QString DateTimeApplet::getDisplayedData(bool) {
     }
 }
 
-QString DateTimeApplet::getDisplayedData() {
+QString DateTimeApplet::getDisplayedData(bool) {
     return getTime();
 }
 
 DateTimeApplet::DateTimeApplet(ConfigManager* cfgMan,
-                               Panel* parentPanel,
-                               QString additionalInfo) : Applet(cfgMan, parentPanel, additionalInfo) {
-    mLayout = parentPanel->mPanelLayout;
+                               Panel* parentPanel) : DynamicApplet(
+                                                         "org.plainDE.dateTime",
+                                                         cfgMan,
+                                                         parentPanel,
+                                                         1000
+                                                     ) {
+    // mLayout = parentPanel->mPanelLayout;
+    // qDebug() << mLayout;
 }
 
 DateTimeApplet::~DateTimeApplet() {

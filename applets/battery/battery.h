@@ -1,7 +1,7 @@
 #ifndef BATTERY_H
 #define BATTERY_H
 
-#include "../../applet.h"
+#include "../../dynamicapplet.h"
 
 #include <QDir>
 #include <QDBusConnection>
@@ -16,24 +16,18 @@ struct Battery {
     QString iconName;
 };
 
-class BatteryApplet : public Applet {
+class BatteryApplet : public DynamicApplet {
 public:
-    BatteryApplet(ConfigManager* cfgMan,
-                  Panel* parentPanel,
-                  QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void repeatingAction(ConfigManager* cfgMan, Panel* parentPanel);
-    void activate(ConfigManager* cfgMan, Panel* parentPanel);
+    BatteryApplet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
+    void repeatingAction() override;
     ~BatteryApplet();
 
-    QFrame* mExternalWidget;
-    bool mDeviceHasBattery;
+    static bool deviceHasBattery();
 
 private:
     void cacheIcons();
     void setBatteryName();
-    void updateBatteryState();
-    void showBatteryData();
 
     Battery mBattery;
 
@@ -46,11 +40,8 @@ private:
     QHash<QString,QPixmap> mCache;
     bool mDark;
 
-    int mInterval;
-    QTimer* mTimer;
-
-    /*QString init();
-    Battery getBatteryState(QString batteryName);*/
+private slots:
+    void updateBatteryInfo();
 };
 
 #endif // BATTERY_H

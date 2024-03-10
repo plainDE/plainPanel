@@ -1,14 +1,14 @@
 #include "applet.h"
 
-void Applet::setBlurredBackground(QWidget* internalWidget) {
-    QScreen* screen = internalWidget->screen();
-    QRect widgetGeometry = internalWidget->geometry();
+void Applet::setBlurredBackground() {
+    QScreen* screen = mInternalWidget->screen();
+    QRect screenGeometry = screen->geometry();
+    QRect widgetGeometry = mInternalWidget->geometry();
     QPixmap pixmap = screen->grabWindow(0,
                                         widgetGeometry.x(),
                                         widgetGeometry.y(),
                                         widgetGeometry.width(),
                                         widgetGeometry.height());
-    qDebug() << widgetGeometry;
     QGraphicsBlurEffect* blurEffect = new QGraphicsBlurEffect();
     blurEffect->setBlurRadius(15);
     blurEffect->setBlurHints(QGraphicsBlurEffect::QualityHint);
@@ -24,87 +24,91 @@ void Applet::setBlurredBackground(QWidget* internalWidget) {
     scene->render(&ptr, QRectF(), QRectF(0, 0, widgetGeometry.width(), widgetGeometry.height()));
 
     QPalette palette;
-    palette.setBrush(internalWidget->backgroundRole(),
+    palette.setBrush(mInternalWidget->backgroundRole(),
                      QBrush(QPixmap::fromImage(res)));
-    internalWidget->setPalette(palette);
+    mInternalWidget->setPalette(palette);
 }
 
-QPair<int,int> Applet::getButtonCoordinates(QWidget* externalWidget, Panel* parentPanel) {
+QPair<int,int> Applet::getButtonCoordinates() {
     int buttonCoord1, buttonCoord2;
-    if (parentPanel->mPanelLayout == Horizontal) {
-        buttonCoord1 = externalWidget->x() + parentPanel->mAxisShift;
-        buttonCoord2 = externalWidget->geometry().topRight().x() + parentPanel->mAxisShift;
+    if (mParentPanel->mPanelLayout == Horizontal) {
+        buttonCoord1 = mExternalWidget->x() + mParentPanel->mAxisShift;
+        buttonCoord2 = mExternalWidget->geometry().topRight().x() +
+                       mParentPanel->mAxisShift;
     }
     else {  // Vertical
-        buttonCoord1 = externalWidget->y() + parentPanel->mAxisShift;
-        buttonCoord2 = externalWidget->geometry().bottomRight().y() + parentPanel->mAxisShift;
+        buttonCoord1 = mExternalWidget->y() + mParentPanel->mAxisShift;
+        buttonCoord2 = mExternalWidget->geometry().bottomRight().y() +
+                       mParentPanel->mAxisShift;
     }
     return qMakePair(buttonCoord1, buttonCoord2);
 }
 
-void Applet::externalWidgetSetup(ConfigManager*, Panel*) {
-
-}
-
-void Applet::preliminaryInternalWidgetSetup(QWidget* internalWidget,
-                                            QWidget* externalWidget,
-                                            ConfigManager* cfgMan,
-                                            Panel* parentPanel,
-                                            int width,
+void Applet::preliminaryInternalWidgetSetup(int width,
                                             int height,
                                             bool canBeTransparent) {
     // Window flags
-    internalWidget->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
+    mInternalWidget->setWindowFlags(Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint);
 
     // Geometry
-    QScreen* screen = parentPanel->mPanelScreen;
+    QScreen* screen = mParentPanel->mPanelScreen;
     QRect screenGeometry = screen->geometry();
     int ax = 0, ay = 0;
-    QPair<int,int> buttonCoords = getButtonCoordinates(externalWidget, parentPanel);
+    QPair<int,int> buttonCoords = getButtonCoordinates();
     int buttonCoord1 = buttonCoords.first, buttonCoord2 = buttonCoords.second;
-    switch (parentPanel->mPanelLocation) {
+    switch (mParentPanel->mPanelLocation) {
     case Top:
         ax = (screenGeometry.width() - buttonCoord1 >= width) ? buttonCoord1 : buttonCoord2 - width;
-        ay = parentPanel->mPanelThickness + 5;
+        ay = mParentPanel->mPanelThickness + 5;
         break;
 
     case Bottom:
         ax = (screenGeometry.width() - buttonCoord1 >= width) ? buttonCoord1 : buttonCoord2 - width;
-        ay = screenGeometry.height() - parentPanel->mPanelThickness - height - 5;
+        ay = screenGeometry.height() - mParentPanel->mPanelThickness - height - 5;
         break;
 
     case Left:
-        ax = parentPanel->mPanelThickness + 5;
+        ax = mParentPanel->mPanelThickness + 5;
         ay = (screenGeometry.height() - buttonCoord1 >= height) ? buttonCoord1 : buttonCoord2 - height;
         break;
 
     case Right:
-        ax = screenGeometry.width() - parentPanel->mPanelThickness - width - 5;
+        ax = screenGeometry.width() - mParentPanel->mPanelThickness - width - 5;
         ay = (screenGeometry.height() - buttonCoord1 >= height) ? buttonCoord1 : buttonCoord2 - height;
         break;
     }
 
     ax += screenGeometry.x();
     ay += screenGeometry.y();
-    internalWidget->setFixedSize(width, height);
-    internalWidget->move(ax, ay);
+    mInternalWidget->setFixedSize(width, height);
+    mInternalWidget->move(ax, ay);
 
     // Font
-    internalWidget->setFont(cfgMan->mFont);
+    mInternalWidget->setFont(mCfgMan->mFont);
 
     // Theme
-    QFile stylesheetReader("/usr/share/plainDE/styles/" + cfgMan->mStylesheet);
+    QFile stylesheetReader("/usr/share/plainDE/styles/" + mCfgMan->mStylesheet);
     stylesheetReader.open(QIODevice::ReadOnly | QIODevice::Text);
     QTextStream styleSheet(&stylesheetReader);
-    internalWidget->setStyleSheet(styleSheet.readAll());
-    if (cfgMan->mTransparent && canBeTransparent) {
-        setBlurredBackground(internalWidget);
+    mInternalWidget->setStyleSheet(styleSheet.readAll());
+    if (mCfgMan->mTransparent && canBeTransparent) {
+        setBlurredBackground();
     }
 
     // Opacity
-    internalWidget->setWindowOpacity(parentPanel->mOpacity);
+    mInternalWidget->setWindowOpacity(mParentPanel->mOpacity);
 }
 
-Applet::Applet(ConfigManager*, Panel*, QString) {
+void Applet::externalWidgetSetup() {
 
+}
+
+void Applet::internalWidgetSetup() {
+
+}
+
+Applet::Applet(QString appletID, ConfigManager* cfgMan, Panel* parentPanel) {
+    mAppletID = appletID;
+    mCfgMan = cfgMan;
+    mParentPanel = parentPanel;
 }

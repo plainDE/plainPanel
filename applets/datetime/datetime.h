@@ -1,30 +1,27 @@
 #ifndef DATETIME_H
 #define DATETIME_H
 
-#include "../../applet.h"
+#include "../../dynamicapplet.h"
 
 #include <QCalendarWidget>
 
-class DateTimeApplet : public Applet {
+class DateTimeApplet : public DynamicApplet {
 public:
-    DateTimeApplet(ConfigManager* cfgMan,
-                   Panel* parentPanel,
-                   QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void repeatingAction(ConfigManager* cfgMan, Panel* parentPanel);
-    void repeatingAction(ConfigManager* cfgMan, Panel* parentPanel, bool showDate);
-    void activate(ConfigManager* cfgMan, Panel* parentPanel);
+    DateTimeApplet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
+    void internalWidgetSetup() override;
+    void activate() override;
     ~DateTimeApplet();
 
-    QPushButton* mExternalWidget;
-
+public slots:
+    void repeatingAction() override;
+    void repeatingAction(bool);
 
 private:
     QString getTime();
     QString getDate();
-    QString getDisplayedData(bool showDate);
     QString getDisplayedData();
+    QString getDisplayedData(bool);
 
     QCalendarWidget* mCalendarWidget;
     QString mTimeFormat;
@@ -32,9 +29,6 @@ private:
     bool mShowDate;
 
     PanelLayout mLayout;
-
-    int mInterval;
-    QTimer* mTimer;
 };
 
 #endif // DATETIME_H

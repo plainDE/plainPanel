@@ -1,63 +1,61 @@
 #include "windowlist.h"
 
-void WindowListApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel) {
-    if (parentPanel->mPanelLayout == Horizontal) {
-        mExternalLayout = new QHBoxLayout();
+void WindowListApplet::externalWidgetSetup() {
+    mExternalWidget = new QWidget();
+    QBoxLayout* layout;
+    if (mParentPanel->mPanelLayout == Horizontal) {
+        layout = new QHBoxLayout(mExternalWidget);
     }
     else {  // Vertical
-        mExternalLayout = new QVBoxLayout();
+        layout = new QVBoxLayout(mExternalWidget);
     }
-    mExternalLayout->setContentsMargins(0, 0, 0, 0);
-    mExternalLayout->setSpacing(parentPanel->mSpacing);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(mParentPanel->mSpacing);
 
     // Make connections
-    connect(KWindowSystem::self(), &KWindowSystem::windowAdded, this, [this, cfgMan,
-                                                                       parentPanel]() {
-        addButtons(cfgMan, parentPanel);
+    connect(KWindowSystem::self(), &KWindowSystem::windowAdded, this, [this]() {
+        addButtons();
     });
-    connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, [this, cfgMan,
-                                                                         parentPanel]() {
-        removeOldButtons(cfgMan, parentPanel);
+    connect(KWindowSystem::self(), &KWindowSystem::windowRemoved, this, [this]() {
+        removeOldButtons();
     });
-    connect(KWindowSystem::self(), &KWindowSystem::activeWindowChanged, this, [this,
-                                                                               cfgMan]() {
-        accentActiveWindow(cfgMan);
+    connect(KWindowSystem::self(), &KWindowSystem::activeWindowChanged, this, [this]() {
+        accentActiveWindow();
     });
-    connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, [this, cfgMan,
-                                                                                 parentPanel]() {
-        addButtons(cfgMan, parentPanel);
+    connect(KWindowSystem::self(), &KWindowSystem::currentDesktopChanged, this, [this]() {
+        addButtons();
     });
 }
 
-void WindowListApplet::addButtons(ConfigManager* cfgMan, Panel* parentPanel) {
+void WindowListApplet::addButtons() {
     getWinList();
     for (auto it = mWIDList.cbegin(), end = mWIDList.cend(); it != end; ++it) {
         KWindowInfo pIDInfo(*it, NET::WMPid);
-        if (pIDInfo.pid() != parentPanel->mPanelPID) {
+        if (pIDInfo.pid() != mParentPanel->mPanelPID) {
             KWindowInfo desktopInfo(*it, NET::WMDesktop);
             if (!mWinWidgets.contains(*it) && desktopInfo.isOnCurrentDesktop()) {
                 KWindowInfo nameInfo(*it, NET::WMName);
-                QPixmap icon = KWindowSystem::icon(*it, -1, parentPanel->mPanelThickness, true);
+                QPixmap icon = KWindowSystem::icon(*it, -1, mParentPanel->mPanelThickness, true);
                 QString winName = nameInfo.name();
 
                 QPushButton* windowButton = new QPushButton();
-                if (parentPanel->mPanelLayout == Horizontal && cfgMan->mWinListShowTitles) {
+                if (mParentPanel->mPanelLayout == Horizontal && mCfgMan->mWinListShowTitles) {
                     windowButton->setText(winName);
-                    windowButton->setFont(cfgMan->mFont);
+                    windowButton->setFont(mCfgMan->mFont);
                 }
                 windowButton->setIcon(icon);
                 windowButton->setIconSize(QSize(mIconSize, mIconSize));
                 windowButton->setToolTip(winName);
-                if (cfgMan->mTransparent) {
+                if (mCfgMan->mTransparent) {
                     windowButton->setFlat(true);
                 }
 
                 mWinWidgets[*it] = windowButton;
-                mExternalLayout->addWidget(windowButton);
+                mExternalWidget->layout()->addWidget(windowButton);
 
-                if (parentPanel->mPanelLayout == Horizontal && cfgMan->mWinListShowTitles) {
+                if (mParentPanel->mPanelLayout == Horizontal && mCfgMan->mWinListShowTitles) {
                     mFullTitleByWId[*it] = winName;
-                    windowButton->setText(shortenTitle(parentPanel, windowButton, winName));
+                    windowButton->setText(shortenTitle(windowButton, winName));
                 }
 
                 this->connect(windowButton, &QPushButton::clicked, this, [this, windowButton]() {
@@ -70,21 +68,20 @@ void WindowListApplet::addButtons(ConfigManager* cfgMan, Panel* parentPanel) {
                     }
                 });
 
-                if (parentPanel->mPanelLayout == Horizontal && cfgMan->mWinListShowTitles) {
-                    updateWinTitlesLength(parentPanel);
+                if (mParentPanel->mPanelLayout == Horizontal && mCfgMan->mWinListShowTitles) {
+                    updateWinTitlesLength();
                 }
             }
             else {
                 if (desktopInfo.isOnCurrentDesktop()) {
-                    if (parentPanel->mPanelLayout == Horizontal && cfgMan->mWinListShowTitles) {
+                    if (mParentPanel->mPanelLayout == Horizontal && mCfgMan->mWinListShowTitles) {
                         KWindowInfo nameInfo(*it, NET::WMName);
                         QString newName = nameInfo.name();
                         if (mFullTitleByWId[*it] != newName) {
-                            updateWinTitlesLength(parentPanel);
+                            updateWinTitlesLength();
                             mFullTitleByWId[*it] = newName;
                             mWinWidgets[*it]->setToolTip(newName);
-                            mWinWidgets[*it]->setText(shortenTitle(parentPanel,
-                                                                   mWinWidgets[*it],
+                            mWinWidgets[*it]->setText(shortenTitle(mWinWidgets[*it],
                                                                    newName));
                         }
                     }
@@ -92,8 +89,8 @@ void WindowListApplet::addButtons(ConfigManager* cfgMan, Panel* parentPanel) {
                 else {
                     delete mWinWidgets[*it];
                     mWinWidgets.remove(*it);
-                    if (parentPanel->mPanelLayout == Horizontal && cfgMan->mWinListShowTitles) {
-                        updateWinTitlesLength(parentPanel);
+                    if (mParentPanel->mPanelLayout == Horizontal && mCfgMan->mWinListShowTitles) {
+                        updateWinTitlesLength();
                     }
                 }
             }
@@ -101,29 +98,28 @@ void WindowListApplet::addButtons(ConfigManager* cfgMan, Panel* parentPanel) {
     }
 }
 
-void WindowListApplet::removeOldButtons(ConfigManager* cfgMan, Panel* parentPanel) {
+void WindowListApplet::removeOldButtons() {
     getWinList();
     QList<WId> keys = mWinWidgets.keys();
     foreach (WId id, keys) {
         if (!mWIDList.contains(id)) {
             delete mWinWidgets[id];
             mWinWidgets.remove(id);
-            if (parentPanel->mPanelLayout == Horizontal && cfgMan->mWinListShowTitles) {
-                updateWinTitlesLength(parentPanel);
+            if (mParentPanel->mPanelLayout == Horizontal && mCfgMan->mWinListShowTitles) {
+                updateWinTitlesLength();
             }
         }
     }
 }
 
-void WindowListApplet::updateWinTitlesLength(Panel* parentPanel) {
+void WindowListApplet::updateWinTitlesLength() {
     for (auto it = mWIDList.cbegin(), end = mWIDList.cend(); it != end; ++it) {
         KWindowInfo pIDInfo(*it, NET::WMPid);
-        if (pIDInfo.pid() != parentPanel->mPanelPID) {
+        if (pIDInfo.pid() != mParentPanel->mPanelPID) {
             if (mWinWidgets.contains(*it)) {
                 QString title = KWindowSystem::readNameProperty(*it, 39);
-                if (getTitleSize(parentPanel, title) > mButtonSizeByWId[*it]) {
-                    mWinWidgets[*it]->setText(shortenTitle(parentPanel,
-                                                           mWinWidgets[*it],
+                if (getTitleSize(title) > mButtonSizeByWId[*it]) {
+                    mWinWidgets[*it]->setText(shortenTitle(mWinWidgets[*it],
                                                            title));
                 }
             }
@@ -131,36 +127,33 @@ void WindowListApplet::updateWinTitlesLength(Panel* parentPanel) {
     }
 }
 
-void WindowListApplet::updateWinTitles(Panel* parentPanel) {
+void WindowListApplet::repeatingAction() {
     for (auto it = mWIDList.cbegin(), end = mWIDList.cend(); it != end; ++it) {
         KWindowInfo pIDInfo(*it, NET::WMPid);
-        if (pIDInfo.pid() != parentPanel->mPanelPID) {
+        if (pIDInfo.pid() != mParentPanel->mPanelPID) {
             if (mWinWidgets.contains(*it)) {
                 QString title = KWindowSystem::readNameProperty(*it, 39);
                 if (mFullTitleByWId[*it] != title) {
                     mFullTitleByWId[*it] = title;
                     mWinWidgets[*it]->setToolTip(title);
-                    mWinWidgets[*it]->setText(shortenTitle(parentPanel,
-                                                           mWinWidgets[*it],
+                    mWinWidgets[*it]->setText(shortenTitle(mWinWidgets[*it],
                                                            title));
-                    updateWinTitlesLength(parentPanel);
+                    updateWinTitlesLength();
                 }
             }
         }
     }
 }
 
-QString WindowListApplet::shortenTitle(Panel* parentPanel,
-                                       QPushButton* button,
-                                       QString title) {
+QString WindowListApplet::shortenTitle(QPushButton* button, QString title) {
     int buttonSize = button->geometry().width() - 6;
-    int dataSize = getTitleSize(parentPanel, title);
+    int dataSize = getTitleSize(title);
     bool edited = false;
     while ((dataSize > buttonSize && title.length() > 0) || title.length() > 15) {
         edited = true;
         title.chop(1);
-        dataSize = getTitleSize(parentPanel, title) +
-                   parentPanel->mFontMetrics->horizontalAdvance("...");
+        dataSize = getTitleSize(title) +
+                   mParentPanel->mFontMetrics->horizontalAdvance("...");
     }
     if (edited) {
         title.append("...");
@@ -168,37 +161,37 @@ QString WindowListApplet::shortenTitle(Panel* parentPanel,
     return title;
 }
 
-int WindowListApplet::getTitleSize(Panel* parentPanel, QString title) {
+int WindowListApplet::getTitleSize(QString title) {
     int iconSize = mIconSize;
-    int dataSize = iconSize + 3 + parentPanel->mFontMetrics->horizontalAdvance(title);
+    int dataSize = iconSize + 3 + mParentPanel->mFontMetrics->horizontalAdvance(title);
     return dataSize;
 }
 
-void WindowListApplet::activate(ConfigManager* cfgMan,
-                                Panel* parentPanel) {
-    if (parentPanel->mPanelLayout == Horizontal && cfgMan->mWinListShowTitles) {
-        mInterval = 1500;
-        mUpdateTitlesTimer = new QTimer(this);
-        mUpdateTitlesTimer->setInterval(mInterval);
-        connect(mUpdateTitlesTimer, &QTimer::timeout, this, [this, parentPanel]() {
-            updateWinTitles(parentPanel);
+void WindowListApplet::activate() {
+    if (mParentPanel->mPanelLayout == Horizontal && mCfgMan->mWinListShowTitles) {
+        mTimer = new QTimer(this);
+        mTimer->setInterval(mInterval);
+        connect(mTimer, &QTimer::timeout, this, [this]() {
+            repeatingAction();
         });
-        mUpdateTitlesTimer->start();
+        mTimer->start();
     }
+    addButtons();
+    accentActiveWindow();
 }
 
-void WindowListApplet::accentActiveWindow(ConfigManager* cfgMan) {
+void WindowListApplet::accentActiveWindow() {
     WId activeWinID = KWindowSystem::activeWindow();
     foreach (QPushButton* button, mWinWidgets) {
         button->setStyleSheet("");
-        if (cfgMan->mTransparent) {
+        if (mCfgMan->mTransparent) {
             button->setFlat(true);
         }
     }
     if (activeWinID != 0 && mWinWidgets.contains(activeWinID)) {
-        QString buttonStyle = QString("background-color: %1; color: #ffffff;").arg(cfgMan->mAccent);
+        QString buttonStyle = QString("background-color: %1; color: #ffffff;").arg(mCfgMan->mAccent);
         mWinWidgets[activeWinID]->setStyleSheet(buttonStyle);
-        if (cfgMan->mTransparent) {
+        if (mCfgMan->mTransparent) {
             mWinWidgets[activeWinID]->setFlat(false);
         }
     }
@@ -209,17 +202,19 @@ void WindowListApplet::getWinList() {
 }
 
 WindowListApplet::WindowListApplet(ConfigManager* cfgMan,
-                                   Panel* parentPanel,
-                                   QString additionalInfo) : Applet(cfgMan,
-                                                                    parentPanel,
-                                                                    additionalInfo) {
+                                   Panel* parentPanel) : DynamicApplet(
+                                                              "org.plainDE.windowList",
+                                                               cfgMan,
+                                                               parentPanel,
+                                                               1500
+                                                         ) {
     mCfgMan = cfgMan;
-    mIconSize = cfgMan->mWinListIconSize;
+    mIconSize = mCfgMan->mWinListIconSize;
 }
 
 WindowListApplet::~WindowListApplet() {
     if (mCfgMan->mWinListShowTitles) {
-        mUpdateTitlesTimer->stop();
+        mTimer->stop();
     }
 
     foreach (QPushButton* button, mWinWidgets) {

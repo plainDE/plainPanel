@@ -1,32 +1,28 @@
 #ifndef WINDOWLIST_H
 #define WINDOWLIST_H
 
-#include "../../applet.h"
+#include "../../dynamicapplet.h"
 
 #include <KWindowSystem>
 
-class WindowListApplet : public Applet {
+class WindowListApplet : public DynamicApplet {
 public:
-    WindowListApplet(ConfigManager* cfgMan, Panel* parentPanel, QString additionalInfo);
-    void externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel);
-    void activate(ConfigManager* cfgMan, Panel* parentPanel);
-    void addButtons(ConfigManager* cfgMan, Panel* parentPanel);
-    void accentActiveWindow(ConfigManager* cfgMan);
-    void updateWinTitlesLength(Panel* parentPanel);
+    WindowListApplet(ConfigManager* cfgMan, Panel* parentPanel);
+    void externalWidgetSetup() override;
+    void activate() override;
+    void addButtons();
+    void accentActiveWindow();
+    void updateWinTitlesLength();
     ~WindowListApplet();
 
-    QBoxLayout* mExternalLayout;
+    //QBoxLayout* mExternalLayout;
 
 private:
     void getWinList();
-    int getTitleSize(Panel* parentPanel, QString title);
-    QString shortenTitle(Panel* parentPanel,
-                         QPushButton* button,
-                         QString title);
-    void updateWinTitles(Panel* parentPanel);
-    void removeOldButtons(ConfigManager* cfgMan, Panel* parentPanel);
-
-    ConfigManager* mCfgMan;
+    int getTitleSize(QString title);
+    QString shortenTitle(QPushButton* button, QString title);
+    void repeatingAction() override;
+    void removeOldButtons();
 
     int mIconSize;
     QList<WId> mWIDList;
@@ -34,9 +30,6 @@ private:
     QHash<WId,QString> mFullTitleByWId;
     QHash<WId,QString> mCurrentTitleByWId;
     QHash<WId,int> mButtonSizeByWId;
-
-    int mInterval;
-    QTimer* mUpdateTitlesTimer;
 };
 
 #endif // WINDOWLIST_H

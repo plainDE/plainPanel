@@ -17,28 +17,28 @@
 
 QDBusConnection mMPRISBus = QDBusConnection::sessionBus();
 
-
-void MPRISApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel) {
+void MPRISApplet::externalWidgetSetup() {
     mExternalWidget = new QPushButton("⏯");  // U+23EF - play/pause icon
     mExternalWidget->setObjectName("mprisButton");
     mExternalWidget->setToolTip(tr("Playback control"));
-    mExternalWidget->setFlat(true);
+    static_cast<QPushButton*>(mExternalWidget)->setFlat(true);
 
-    if (parentPanel->mPanelLayout == Horizontal) {
-        mExternalWidget->setMaximumWidth(parentPanel->mFontMetrics->horizontalAdvance("⏯"));
+    if (mParentPanel->mPanelLayout == Horizontal) {
+        mExternalWidget->setMaximumWidth(mParentPanel->mFontMetrics->horizontalAdvance("⏯"));
     }
     else {  // Vertical
-        mExternalWidget->setMaximumHeight(parentPanel->mFontMetrics->horizontalAdvance("⏯"));
+        mExternalWidget->setMaximumHeight(mParentPanel->mFontMetrics->horizontalAdvance("⏯"));
     }
 
     // Make connections
-    connect(mExternalWidget, &QPushButton::clicked, this, [this, cfgMan, parentPanel]() {
+    connect(static_cast<QPushButton*>(mExternalWidget),
+            &QPushButton::clicked, this, [this]() {
         if (!mInternalWidget->isVisible()) {
             mDestructed = false;
-            addCards(cfgMan);
-            setSize(cfgMan, parentPanel);
-            if (cfgMan->mTransparent) {
-                setBlurredBackground(mInternalWidget);
+            addCards();
+            setSize();
+            if (mCfgMan->mTransparent) {
+                setBlurredBackground();
             }
             mInternalWidget->show();
         }
@@ -49,38 +49,32 @@ void MPRISApplet::externalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel)
     });
 }
 
-void MPRISApplet::setSize(ConfigManager* cfgMan, Panel* parentPanel) {
+void MPRISApplet::setSize() {
     int width = 300;
     int height = 200;
     if (mHasCards) {
-        height = (150 + parentPanel->mSpacing) * mCards.length();
+        height = (150 + mParentPanel->mSpacing) * mCards.length();
     }
-    preliminaryInternalWidgetSetup(mInternalWidget,
-                                   mExternalWidget,
-                                   cfgMan,
-                                   parentPanel,
-                                   width,
-                                   height,
-                                   true);
+    preliminaryInternalWidgetSetup(width, height, true);
 }
 
-void MPRISApplet::internalWidgetSetup(ConfigManager* cfgMan, Panel* parentPanel) {
+void MPRISApplet::internalWidgetSetup() {
     mInternalWidget = new QWidget();
 
     // Geometry
-    setSize(cfgMan, parentPanel);
+    setSize();
 
     mInternalWidget->setObjectName("mprisApplet");
     QVBoxLayout* layout = new QVBoxLayout(mInternalWidget);
     layout->setContentsMargins(0, 0, 0, 0);
-    layout->setSpacing(parentPanel->mSpacing);
+    layout->setSpacing(mParentPanel->mSpacing);
 }
 
-QWidget* MPRISApplet::createPlayerCard(ConfigManager* cfgMan, QString serviceName) {
+QWidget* MPRISApplet::createPlayerCard(QString serviceName) {
     QWidget* playerCard = new QWidget;
     QVBoxLayout* cardLayout = new QVBoxLayout;
     playerCard->setLayout(cardLayout);
-    playerCard->setFont(cfgMan->mFont);
+    playerCard->setFont(mCfgMan->mFont);
     playerCard->setObjectName("mprisCard");
     playerCard->setMaximumWidth(300);
     playerCard->setMinimumHeight(100);
@@ -94,7 +88,7 @@ QWidget* MPRISApplet::createPlayerCard(ConfigManager* cfgMan, QString serviceNam
     updateIdentity(serviceName, iconLabel, titleLabel);
     titleLabel->setAlignment(Qt::AlignCenter);
     titleLabel->setWordWrap(true);
-    titleLabel->setFont(cfgMan->mFont);
+    titleLabel->setFont(mCfgMan->mFont);
 
     cardIdentity->addWidget(iconLabel);
     cardIdentity->addWidget(titleLabel);
@@ -108,7 +102,7 @@ QWidget* MPRISApplet::createPlayerCard(ConfigManager* cfgMan, QString serviceNam
 
     QPushButton* previousPushButton = new QPushButton("⏮");  // U+23EE - previous
     previousPushButton->setStyleSheet(
-        "background-color: " + cfgMan->mAccent + "; color: #ffffff;");
+        "background-color: " + mCfgMan->mAccent + "; color: #ffffff;");
     previousPushButton->setFont(controlsFont);
     previousPushButton->setMaximumHeight(40);
     previousPushButton->setToolTip(tr("Backward"));
@@ -116,7 +110,7 @@ QWidget* MPRISApplet::createPlayerCard(ConfigManager* cfgMan, QString serviceNam
 
     QPushButton* playPausePushButton = new QPushButton("⏯");  // U+23EF - play/pause
     playPausePushButton->setStyleSheet(
-        "background-color: " + cfgMan->mAccent + "; color: #ffffff;");
+        "background-color: " + mCfgMan->mAccent + "; color: #ffffff;");
     playPausePushButton->setFont(controlsFont);
     playPausePushButton->setMaximumHeight(40);
     playPausePushButton->setToolTip(tr("Play / Pause"));
@@ -124,7 +118,7 @@ QWidget* MPRISApplet::createPlayerCard(ConfigManager* cfgMan, QString serviceNam
 
     QPushButton* nextPushButton = new QPushButton("⏭");  // U+23ED - next
     nextPushButton->setStyleSheet(
-        "background-color: " + cfgMan->mAccent + "; color: #ffffff;");
+        "background-color: " + mCfgMan->mAccent + "; color: #ffffff;");
     nextPushButton->setFont(controlsFont);
     nextPushButton->setMaximumHeight(40);
     nextPushButton->setToolTip(tr("Forward"));
@@ -149,13 +143,13 @@ QWidget* MPRISApplet::createPlayerCard(ConfigManager* cfgMan, QString serviceNam
     return playerCard;
 }
 
-void MPRISApplet::addCards(ConfigManager* cfgMan) {
+void MPRISApplet::addCards() {
     QStringList dbusServices = mMPRISBus.interface()->registeredServiceNames().value();
     unsigned short countPlayers = 0;
     foreach (QString currentService, dbusServices) {
         if (currentService.startsWith("org.mpris.MediaPlayer2")) {
             ++countPlayers;
-            QWidget* currentPlayerCard = createPlayerCard(cfgMan, currentService);
+            QWidget* currentPlayerCard = createPlayerCard(currentService);
             mCards.append(currentPlayerCard);
             mInternalWidget->layout()->addWidget(currentPlayerCard);
             mHasCards = true;
@@ -166,7 +160,7 @@ void MPRISApplet::addCards(ConfigManager* cfgMan) {
         mHasCards = false;
         QLabel* noPlayersLabel = new QLabel("Nothing is playing at the moment.");
         noPlayersLabel->setStyleSheet(mInternalWidget->styleSheet());
-        noPlayersLabel->setFont(cfgMan->mFont);
+        noPlayersLabel->setFont(mCfgMan->mFont);
         noPlayersLabel->setAlignment(Qt::AlignCenter);
         mCards.append(noPlayersLabel);
         mInternalWidget->layout()->addWidget(noPlayersLabel);
@@ -287,8 +281,11 @@ void MPRISApplet::destructCards() {
 }
 
 MPRISApplet::MPRISApplet(ConfigManager* cfgMan,
-                         Panel* parentPanel,
-                         QString additionalInfo) : Applet(cfgMan, parentPanel, additionalInfo) {
+                         Panel* parentPanel) : StaticApplet(
+                                                   "org.plainDE.mpris",
+                                                   cfgMan,
+                                                   parentPanel
+                                               ) {
 
 }
 
